@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASP Continuous Improvement Active & Performance Dashboard — Velocity & TAT Analytics</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS CDN for Client-Side Excel / CSV Drag & Drop Ingestion -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --cisco-blue: #00BCEB;
+      --cisco-navy: #005073;
+      --cisco-dark: #0D274D;
+      --cisco-teal: #00A389;
+      --cisco-orange: #FA582D;
+      --cisco-green: #6CC24A;
+      --cisco-slate: #58585B;
+      --cisco-charcoal: #2B2B2B;
+      --bg-neutral: #F4F5F7;
+      --card-bg: #FFFFFF;
+      --border-color: #E2E6ED;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background-color: var(--bg-neutral);
+      color: var(--cisco-charcoal);
+      padding: 24px;
+      line-height: 1.45;
+    }
+    .dashboard-container {
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+    
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--cisco-navy) 0%, var(--cisco-dark) 100%);
+      color: #FFFFFF;
+      padding: 20px 24px;
+      border-radius: 10px;
+      border-bottom: 4px solid var(--cisco-blue);
+      margin-bottom: 14px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .header-left h1 {
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin-bottom: 4px;
+    }
+    .header-left p {
+      color: var(--cisco-blue);
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .header-right {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .badge-pill {
+      background: rgba(0, 188, 235, 0.2);
+      border: 1px solid var(--cisco-blue);
+      color: #FFFFFF;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-date {
+      background: rgba(255, 255, 255, 0.15);
+      color: #FFFFFF;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* Compact Drag & Drop Upload Zone */
+    .upload-section {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .drop-zone {
+      flex: 1;
+      min-width: 320px;
+      border: 2px dashed #B8C8D9;
+      background: #F8FAFD;
+      border-radius: 6px;
+      padding: 8px 14px;
+      text-align: center;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      transition: all 0.2s ease;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--cisco-blue);
+      background: #EBF7FC;
+    }
+    .drop-icon {
+      font-size: 20px;
+    }
+    .drop-text {
+      text-align: left;
+    }
+    .drop-text strong {
+      font-size: 12.5px;
+      color: var(--cisco-navy);
+      display: block;
+    }
+    .drop-text span {
+      font-size: 11px;
+      color: var(--cisco-slate);
+    }
+    .upload-status {
+      font-size: 12px;
+      font-weight: 600;
+      color: #2E7D32;
+      background: #E8F5E9;
+      border: 1px solid #C8E6C9;
+      padding: 6px 12px;
+      border-radius: 6px;
+      display: none;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Tab Navigation */
+    .tab-nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 2px;
+    }
+    .tab-btn {
+      background: #EAEFF5;
+      color: var(--cisco-navy);
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px 8px 0 0;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+    .tab-btn:hover {
+      background: #D8E2ED;
+    }
+    .tab-btn.active {
+      background: var(--cisco-navy);
+      color: #FFFFFF;
+      border-bottom: 3px solid var(--cisco-blue);
+    }
+    .tab-pane {
+      display: none;
+    }
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      border-top: 4px solid var(--cisco-blue);
+      transition: all 0.2s ease;
+    }
+    .kpi-card:hover {
+      transform: translateY(-2px);
+    }
+    .kpi-card.c-navy { border-top-color: var(--cisco-navy); }
+    .kpi-card.c-green { border-top-color: var(--cisco-green); }
+    .kpi-card.c-orange { border-top-color: var(--cisco-orange); }
+    .kpi-card.c-teal { border-top-color: var(--cisco-teal); }
+    .kpi-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--cisco-slate);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .kpi-val {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--cisco-navy);
+      line-height: 1.1;
+      margin-bottom: 4px;
+      transition: all 0.3s ease;
+    }
+    .kpi-sub {
+      font-size: 11.5px;
+      color: var(--cisco-slate);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .delta-down { color: var(--cisco-green); font-weight: 700; }
+    .delta-up { color: var(--cisco-orange); font-weight: 700; }
+
+    /* Section Cards */
+    .section-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .section-header h2 {
+      font-size: 15.5px;
+      font-weight: 700;
+      color: var(--cisco-navy);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-header span {
+      font-size: 12px;
+      color: var(--cisco-slate);
+      font-weight: 500;
+    }
+
+    /* Compact 3-Column Chart Grid */
+    .compact-charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.2fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 990px) {
+      .compact-charts-grid { grid-template-columns: 1fr; }
+    }
+    .compact-chart-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      display: flex;
+      flex-direction: column;
+    }
+    .compact-chart-box h3 {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--cisco-navy);
+      margin-bottom: 10px;
+    }
+    .compact-chart-canvas-wrapper {
+      position: relative;
+      height: 140px;
+      width: 100%;
+    }
+
+    /* 2 Column Charts for Tab 2 */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 900px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+    .chart-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .chart-box h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--cisco-navy);
+      margin-bottom: 12px;
+    }
+
+    /* Table & Controls */
+    .table-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+    .search-input {
+      flex: 1;
+      min-width: 220px;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+    }
+    .search-input:focus {
+      border-color: var(--cisco-blue);
+      box-shadow: 0 0 0 2px rgba(0, 188, 235, 0.2);
+    }
+    .filter-select {
+      padding: 7px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 11.5px;
+      background: #FFFFFF;
+      color: var(--cisco-charcoal);
+      outline: none;
+    }
+    .table-wrapper {
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+      text-align: left;
+    }
+    th {
+      background: #F4F6F9;
+      color: var(--cisco-navy);
+      font-weight: 700;
+      padding: 9px 12px;
+      border-bottom: 2px solid var(--border-color);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    th:hover {
+      background: #EAEFF5;
+    }
+    td {
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--cisco-charcoal);
+      vertical-align: top;
+    }
+    tr:nth-child(even) {
+      background: #FAFBFC;
+    }
+    tr:hover {
+      background: #F0F6FA;
+    }
+    .ticket-badge {
+      font-weight: 700;
+      color: var(--cisco-navy);
+    }
+    .age-pill {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-size: 10.5px;
+      font-weight: 600;
+    }
+    .age-low { background: #E8F5E9; color: #2E7D32; }
+    .age-med { background: #FFF3E0; color: #E65100; }
+    .age-high { background: #FFEBEE; color: #C62828; }
+
+    /* Status Badges */
+    .tag-closed {
+      background: #E8F7E8;
+      color: #2E7D32;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+    .tag-open {
+      background: #E1F5FE;
+      color: #0277BD;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+    .tag-review {
+      background: #E0F2F1;
+      color: #00796B;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+    .tag-raised {
+      background: #FFF3E0;
+      color: #E65100;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+    .tag-prio-high {
+      background: #FEEBE7;
+      color: #D32F2F;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+    .tag-prio-med {
+      background: #FFF8E1;
+      color: #F57C00;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+
+    /* Time Filter Buttons */
+    .filter-btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      background: #EAEFF5;
+      padding: 4px;
+      border-radius: 6px;
+    }
+    .gran-btn {
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: var(--cisco-navy);
+      transition: all 0.15s ease;
+    }
+    .gran-btn.active {
+      background: var(--cisco-navy);
+      color: #FFFFFF;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* Highlight Banner */
+    .velocity-banner {
+      background: linear-gradient(135deg, rgba(0, 188, 235, 0.1) 0%, rgba(108, 194, 74, 0.15) 100%);
+      border: 1px solid var(--cisco-blue);
+      border-left: 5px solid var(--cisco-green);
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .velocity-banner h3 {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--cisco-navy);
+      margin-bottom: 2px;
+    }
+    .velocity-banner p {
+      font-size: 11.5px;
+      color: var(--cisco-charcoal);
+    }
+    .stat-badge {
+      background: #FFFFFF;
+      border: 1px solid var(--border-color);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      color: var(--cisco-navy);
+      font-size: 11.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Spinning counter animation */
+    .spin-val {
+      animation: pulseHighlight 0.4s ease-in-out;
+    }
+    @keyframes pulseHighlight {
+      0% { transform: scale(1); color: var(--cisco-blue); }
+      50% { transform: scale(1.08); color: var(--cisco-orange); }
+      100% { transform: scale(1); color: var(--cisco-navy); }
+    }
+
+    /* Footer */
+    .dashboard-footer {
+      margin-top: 26px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--cisco-slate);
+      border-top: 1px solid var(--border-color);
+      padding-top: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    
+    <!-- Top Header -->
+    <div class="header">
+      <div class="header-left">
+        <h1>ASP Continuous Improvement Active & Performance Dashboard</h1>
+        <p>Acacia Services Portal (ASP) / Customer Requests — Velocity, Turnaround Time (TAT) & Weekly Movement</p>
+      </div>
+      <div class="header-right">
+        <div class="badge-pill">Velocity & TAT Analytics Center</div>
+        <div id="liveDateBadge" class="badge-date">21-Oct-2026 (Live Post-Meeting Triage)</div>
+      </div>
+    </div>
+
+    <!-- Drag & Drop Upload Zone -->
+    <div class="upload-section">
+      <input type="file" id="fileUploader" accept=".xlsx, .xls, .csv" style="display:none;" onchange="handleFileSelect(event)">
+      <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileUploader').click()">
+        <div class="drop-icon">📂</div>
+        <div class="drop-text">
+          <strong>Drag & Drop latest export here, or click to upload</strong>
+          <span>Accepts user_requests_export_*.xlsx or customer_requests.csv — auto-refreshes all tables & charts</span>
+        </div>
+      </div>
+      <div id="uploadStatusBadge" class="upload-status">
+        <span id="uploadStatusText">✅ File ingested successfully</span>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('tab-current')">
+        📌 Tab 1: Current Active View (<span id="tab1Count">51</span> Active Tickets & Weekly Closures)
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-trends')">
+        ⏱️ Tab 2: Turnaround Time (TAT) & Dynamic Performance Slices (All / Year / Quarter / Month / Week)
+      </button>
+    </div>
+
+    <!-- ==================== TAB 1: CURRENT ACTIVE VIEW & WEEKLY CLOSURE TAT ==================== -->
+    <div id="tab-current" class="tab-pane active">
+      
+      <!-- Velocity Callout Banner -->
+      <div class="velocity-banner">
+        <div>
+          <h3>🚀 Turnaround Time & Weekly Closure Breakthrough</h3>
+          <p>Mean Turnaround Time (TAT) cut by <strong>61.4%</strong> (from 106.3d in 2024 to <strong>41.0d in Q3 2026</strong>), with <strong>10 closures in the past 7 days</strong> eliminating 3 legacy multi-year debts.</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <div class="stat-badge"><span style="color:var(--cisco-green);">▼ 61.4%</span> TAT Cut</div>
+          <div class="stat-badge"><span style="color:var(--cisco-navy);">10 Closures</span> Past 7 Days</div>
+          <div class="stat-badge"><span style="color:var(--cisco-orange);">19.8d</span> Fast-Track Mean</div>
+        </div>
+      </div>
+
+      <!-- Current KPI Grid -->
+      <div class="kpi-grid">
+        <div class="kpi-card c-navy">
+          <div class="kpi-title">Active Requests Backlog</div>
+          <div id="kpiActiveCount" class="kpi-val">51</div>
+          <div id="kpiActiveSub" class="kpi-sub"><span class="delta-down">▼ 14 (-21.5%)</span> vs 10-Sep baseline (65)</div>
+        </div>
+        <div class="kpi-card c-green">
+          <div class="kpi-title">Closed Past 7 Days</div>
+          <div id="kpiClosedCount" class="kpi-val">10</div>
+          <div class="kpi-sub">3 Legacy (>670d) + 7 Fast-Track & Mid-Age</div>
+        </div>
+        <div class="kpi-card c-orange">
+          <div class="kpi-title">Active Bug Backlog</div>
+          <div id="kpiBugCount" class="kpi-val">7</div>
+          <div id="kpiBugSub" class="kpi-sub"><span class="delta-down">▼ 5 (-41.7%)</span> vs 10-Sep baseline (12)</div>
+        </div>
+        <div class="kpi-card c-teal">
+          <div class="kpi-title">Pipeline Freshness (&le;60d)</div>
+          <div id="kpiFreshnessVal" class="kpi-val">54.9%</div>
+          <div id="kpiFreshnessSub" class="kpi-sub">28 of 51 tickets in active recent flow</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-title">Aging &gt; 100 Days</div>
+          <div id="kpiAgingVal" class="kpi-val">21</div>
+          <div id="kpiAgingSub" class="kpi-sub">Down from 25 baseline (41.2% pool)</div>
+        </div>
+      </div>
+
+      <!-- Past 7 Days Closure & Velocity Detail Section -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2>⚡ Past 7 Days Pipeline Movement & Closed Tickets (Oct 14 ➔ Oct 21)</h2>
+          <span>10 Total Closures &bull; 3 Legacy Multi-Year Debts Eliminated &bull; Post-Meeting Triage Applied</span>
+        </div>
+
+        <div style="margin-bottom: 14px; background:#F8FAFD; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px; font-size:11.5px; color:var(--cisco-charcoal);">
+          <strong>Weekly Closure Summary:</strong> Following today's alignment and weekly review sessions, <strong>10 tickets were closed out</strong>. This resolved 3 ancient multi-year bottlenecks (<strong>T087</strong> [852d], <strong>T227</strong> [683d], <strong>T257</strong> [677d]) while fast-tracking critical portal bug fixes in as little as <strong>3 to 14 days</strong> (mean recent fast-track TAT: <strong>19.8 days</strong>).
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Ticket #</th>
+                <th>Issue Name</th>
+                <th>Type</th>
+                <th>Priority</th>
+                <th>Turnaround Time (TAT)</th>
+                <th>Raised By</th>
+                <th>Created Date</th>
+                <th>Closed Date</th>
+                <th>Resolution Highlights</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="ticket-badge">T646</span></td>
+                <td><strong>Smart Rule Report : FA approval</strong></td>
+                <td>Action</td>
+                <td><span class="tag-prio-high">High</span></td>
+                <td><span class="age-pill age-low"><strong>3d</strong> (⚡ Fast Track (3d))</span></td>
+                <td>Emer Ryan</td>
+                <td>13-Oct-2026</td>
+                <td><strong style="color:var(--cisco-navy);">16-Oct-2026</strong></td>
+                <td style="color:var(--cisco-slate);">Automated smart rule generation for FA approval sign-offs.</td>
+              </tr><tr>
+                <td><span class="ticket-badge">T644</span></td>
+                <td><strong>RMA Creation Table search is not working</strong></td>
+                <td>Bug</td>
+                <td><span class="tag-prio-high">High</span></td>
+                <td><span class="age-pill age-low"><strong>9d</strong> (⚡ Fast Track (9d))</span></td>
+                <td>Charlotte Hanley</td>
+                <td>10-Oct-2026</td>
+                <td><strong style="color:var(--cisco-navy);">19-Oct-2026</strong></td>
+                <td style="color:var(--cisco-slate);">Fixed table search indexing in portal RMA creation view.</td>
+              </tr><tr>
+                <td><span class="ticket-badge">T641</span></td>
+                <td><strong>RMA Creation Nathawit cases intake in portal</strong></td>
+                <td>Bug</td>
+                <td><span class="tag-prio-med">Medium</span></td>
+                <td><span class="age-pill age-low"><strong>12d</strong> (⚡ Fast Track (12d))</span></td>
+                <td>Charlotte Hanley</td>
+                <td>07-Oct-2026</td>
+                <td><strong style="color:var(--cisco-navy);">19-Oct-2026</strong></td>
+                <td style="color:var(--cisco-slate);">Resolved case routing for Nathawit customer intake.</td>
+              </tr><tr>
+                <td><span class="ticket-badge">T639</span></td>
+                <td><strong>D4:L1 Root Cause Review Alerts</strong></td>
+                <td>Fault Resolution</td>
+                <td><span class="tag-prio-high">High</span></td>
+                <td><span class="age-pill age-low"><strong>14d</strong> (⚡ Fast Track (14d))</span></td>
+                <td>Erik Cetaruk</td>
+                <td>07-Oct-2026</td>
+                <td><strong style="color:var(--cisco-navy);">21-Oct-2026</strong></td>
+                <td style="color:var(--cisco-slate);">Enforced forward gate alerts on root cause assignment.</td>
+              </tr><tr>
+                <td><span class="ticket-badge">T633</span></td>
+                <td><strong>Ready Customer Report Bug / Reports Not Being Sent</strong></td>
+                <td>Bug</td>
+                <td><span class="tag-prio-med">Medium</span></td>
+                <td><span class="age-pill age-low"><strong>27d</strong> (⚡ Fast Track (27d))</span></td>
+                <td>Katelyn Kenney</td>
+                <td>22-Sep-2026</td>
+                <td><strong style="color:var(--cisco-navy);">19-Oct-2026</strong></td>
+                <td style="color:var(--cisco-slate);">Fixed report distribution scheduler and email dispatch.</td>
+              </tr><tr>
+                <td><span class="ticket-badge">T611</span></td>
+                <td><strong>Change user for RMA create status</strong></td>
+                <td>Action</td>
+                <td><span class="tag-prio-med">Medium</span></td>
+                <td><span class="age-pill age-med"><strong>46d</strong> (🎯 Within Target (46d))</span></td>
+                <td>Krishna Bisen</td>
+                <td>03-Sep-2026</td>
+                <td><strong style="color:var(--cisco-navy);">19-Oct-2026</strong></td>
+                <td style="color:var(--cisco-slate);">Updated permission and user assignment logic on RMA creation.</td>
+              </tr><tr>
+                <td><span class="ticket-badge">T589</span></td>
+                <td><strong>CFAR record (Subcomponent Part Number field)</strong></td>
+                <td>Action</td>
+                <td><span class="tag-prio-med">Medium</span></td>
+                <td><span class="age-pill age-med"><strong>97d</strong> (📦 Resolved (97d))</span></td>
+                <td>Emer Ryan</td>
+                <td>15-Jul-2026</td>
+                <td><strong style="color:var(--cisco-navy);">20-Oct-2026</strong></td>
+                <td style="color:var(--cisco-slate);">Added subcomponent part number capture in CFAR layout.</td>
+              </tr><tr>
+                <td><span class="ticket-badge">T257</span></td>
+                <td><strong>Reports (FA notification differentiation)</strong></td>
+                <td>Change Request</td>
+                <td><span class="tag-prio-high">High</span></td>
+                <td><span class="age-pill age-high"><strong>677d</strong> (🏆 Legacy Debt Cleared (677d))</span></td>
+                <td>Charlotte Hanley</td>
+                <td>13-Dec-2024</td>
+                <td><strong style="color:var(--cisco-navy);">20-Oct-2026</strong></td>
+                <td style="color:var(--cisco-slate);">Differentiated notification channels for internal vs customer FA reports.</td>
+              </tr><tr>
+                <td><span class="ticket-badge">T227</span></td>
+                <td><strong>Investigation Detail and Conclusion Field</strong></td>
+                <td>Feature Enhancement</td>
+                <td><span class="tag-prio-med">Medium</span></td>
+                <td><span class="age-pill age-high"><strong>683d</strong> (🏆 Legacy Debt Cleared (683d))</span></td>
+                <td>Charlotte Hanley</td>
+                <td>07-Dec-2024</td>
+                <td><strong style="color:var(--cisco-navy);">20-Oct-2026</strong></td>
+                <td style="color:var(--cisco-slate);">Implemented dedicated investigation conclusions field in ASP portal.</td>
+              </tr><tr>
+                <td><span class="ticket-badge">T087</span></td>
+                <td><strong>Aging on FARs</strong></td>
+                <td>Change Request</td>
+                <td><span class="tag-prio-high">High</span></td>
+                <td><span class="age-pill age-high"><strong>852d</strong> (🏆 Legacy Debt Cleared (852d))</span></td>
+                <td>Acacia</td>
+                <td>20-Jun-2024</td>
+                <td><strong style="color:var(--cisco-navy);">20-Oct-2026</strong></td>
+                <td style="color:var(--cisco-slate);">Automated aging calculations across active FAR records.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Compact 3-Column Visuals Grid (Status, Priority, Types) -->
+      <div class="compact-charts-grid">
+        <div class="compact-chart-box">
+          <h3>Status Distribution (51 Active)</h3>
+          <div class="compact-chart-canvas-wrapper">
+            <canvas id="currStatusChart"></canvas>
+          </div>
+        </div>
+        <div class="compact-chart-box">
+          <h3>Priority Distribution (51 Active)</h3>
+          <div class="compact-chart-canvas-wrapper">
+            <canvas id="currPrioChart"></canvas>
+          </div>
+        </div>
+        <div class="compact-chart-box">
+          <h3>Active Request Types (51 Active)</h3>
+          <div class="compact-chart-canvas-wrapper">
+            <canvas id="currTypeChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Bugs Section -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2>🐛 Active Bug Backlog (<span id="activeBugTableCount">7</span> Records Remaining)</h2>
+          <span id="bugHeaderSummary">3 High Priority &bull; 4 Medium Priority</span>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Ticket #</th>
+                <th>Issue Name</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Age</th>
+                <th>Raised By</th>
+                <th>Description Snippet</th>
+              </tr>
+            </thead>
+            <tbody id="activeBugsTableBody">
+              <!-- Rendered Dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Complete Active Inventory Table -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2>📋 Active Requests Inventory (51 Active Tickets)</h2>
+          <span id="filteredCount">Showing 51 of 51 records</span>
+        </div>
+
+        <div class="table-controls">
+          <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search ticket #, title, owner, or description..." onkeyup="filterCurrentTable()">
+          <select id="statusFilter" class="filter-select" onchange="filterCurrentTable()">
+            <option value="ALL">All Statuses (51)</option>
+            <option value="Open">Open (46)</option>
+            <option value="In Review">In Review (3)</option>
+            <option value="Raised">Raised (2)</option>
+          </select>
+          <select id="typeFilter" class="filter-select" onchange="filterCurrentTable()">
+            <option value="ALL">All Request Types</option>
+          </select>
+          <select id="prioFilter" class="filter-select" onchange="filterCurrentTable()">
+            <option value="ALL">All Priorities</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+          <select id="ageFilter" class="filter-select" onchange="filterCurrentTable()">
+            <option value="ALL">All Age Brackets</option>
+            <option value="LE30">&le; 30 Days</option>
+            <option value="31TO60">31 &ndash; 60 Days</option>
+            <option value="61TO100">61 &ndash; 100 Days</option>
+            <option value="GT100">&gt; 100 Days</option>
+          </select>
+        </div>
+
+        <div class="table-wrapper">
+          <table id="requestsTable">
+            <thead>
+              <tr>
+                <th onclick="sortCurrentTable(0)">Ticket # ⬍</th>
+                <th onclick="sortCurrentTable(1)">Issue Name ⬍</th>
+                <th onclick="sortCurrentTable(2)">Type ⬍</th>
+                <th onclick="sortCurrentTable(3)">Priority ⬍</th>
+                <th onclick="sortCurrentTable(4)">Status ⬍</th>
+                <th onclick="sortCurrentTable(5)">Age (Days) ⬍</th>
+                <th onclick="sortCurrentTable(6)">Raised By ⬍</th>
+                <th>Description Snippet</th>
+              </tr>
+            </thead>
+            <tbody id="currentTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==================== TAB 2: TAT & DYNAMIC PERFORMANCE SLICES ==================== -->
+    <div id="tab-trends" class="tab-pane">
+      
+      <!-- Interactive Time Filter Bar -->
+      <div class="section-card" style="padding: 14px 18px; margin-bottom: 18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span style="font-size:12.5px; font-weight:700; color:var(--cisco-navy);">Select Time Slice:</span>
+            <div class="filter-btn-group">
+              <button id="btn-slice-all" class="gran-btn" onclick="applyTimeSlice('ALL')">All-Time History</button>
+              <button id="btn-slice-2026" class="gran-btn active" onclick="applyTimeSlice('Y_2026')">Year 2026</button>
+              <button id="btn-slice-2025" class="gran-btn" onclick="applyTimeSlice('Y_2025')">Year 2025</button>
+              <button id="btn-slice-2024" class="gran-btn" onclick="applyTimeSlice('Y_2024')">Year 2024</button>
+              <button id="btn-slice-q3" class="gran-btn" onclick="applyTimeSlice('Q_2026Q3')">Q3 2026</button>
+              <button id="btn-slice-q2" class="gran-btn" onclick="applyTimeSlice('Q_2026Q2')">Q2 2026</button>
+              <button id="btn-slice-month" class="gran-btn" onclick="applyTimeSlice('M_OCT26')">Last Month (Oct 26)</button>
+              <button id="btn-slice-week" class="gran-btn" onclick="applyTimeSlice('WEEK_7D')">Last 7 Days</button>
+            </div>
+          </div>
+          <div>
+            <span style="font-size:12px; color:var(--cisco-slate);">Active Slice: <strong id="activeSliceName" style="color:var(--cisco-navy);">Year 2026</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dynamic Spinning KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card c-navy">
+          <div class="kpi-title">Total Requests Raised</div>
+          <div id="sliceReqVal" class="kpi-val">185</div>
+          <div id="sliceReqSub" class="kpi-sub">Volume in selected slice</div>
+        </div>
+        <div class="kpi-card c-green">
+          <div class="kpi-title">Total Resolved / Closed</div>
+          <div id="sliceResVal" class="kpi-val">181</div>
+          <div id="sliceResSub" class="kpi-sub">Completed & closed</div>
+        </div>
+        <div class="kpi-card c-teal">
+          <div class="kpi-title">Resolution Rate</div>
+          <div id="sliceRateVal" class="kpi-val">97.8%</div>
+          <div id="sliceRateSub" class="kpi-sub">Throughput ratio</div>
+        </div>
+        <div class="kpi-card c-navy">
+          <div class="kpi-title">Mean Turnaround Time (TAT)</div>
+          <div id="sliceMeanVal" class="kpi-val">54.7 Days</div>
+          <div id="sliceMeanSub" class="kpi-sub">Average days to close</div>
+        </div>
+        <div class="kpi-card c-orange">
+          <div class="kpi-title">Median TAT</div>
+          <div id="sliceMedianVal" class="kpi-val">37.0 Days</div>
+          <div id="sliceMedianSub" class="kpi-sub">50th percentile cycle</div>
+        </div>
+        <div class="kpi-card c-green">
+          <div class="kpi-title">&le; 60-Day Compliance Rate</div>
+          <div id="sliceCompVal" class="kpi-val">71.8%</div>
+          <div id="sliceCompSub" class="kpi-sub">Closed within target</div>
+        </div>
+      </div>
+
+      <!-- TAT Trend Charts Grid 1: Mean/Median TAT Trend & 60-Day Compliance -->
+      <div class="charts-grid">
+        <div class="chart-box">
+          <h3>⏱️ Mean & Median Turnaround Time (TAT) Acceleration (Quarterly)</h3>
+          <canvas id="tatTrendChart" height="130"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>🎯 60-Day Closure Window Compliance Rate (%)</h3>
+          <canvas id="tatComplianceChart" height="130"></canvas>
+        </div>
+      </div>
+
+      <!-- TAT Trend Charts Grid 2: Bracket Distribution & Throughput Volume -->
+      <div class="charts-grid">
+        <div class="chart-box">
+          <h3>📊 TAT Aging Bracket Breakdown (&le;30d, 31-60d, 61-100d, &gt;100d)</h3>
+          <canvas id="tatBracketChart" height="130"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>📦 Historical Intake vs. Resolved Volume per Quarter</h3>
+          <canvas id="trendVolumeChart" height="130"></canvas>
+        </div>
+      </div>
+
+      <!-- Granular Historical TAT Progression Table -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2 id="tatTableTitle">📋 Granular Turnaround Time (TAT) Progression Table</h2>
+          <span id="tatTableCount">11 Quarters Analyzed</span>
+        </div>
+        <div class="table-wrapper">
+          <table id="tatTable">
+            <thead>
+              <tr>
+                <th>Period / Slice ⬍</th>
+                <th>Total Closed ⬍</th>
+                <th>Mean TAT (Days) ⬍</th>
+                <th>Median TAT (Days) ⬍</th>
+                <th>% &le; 60 Days ⬍</th>
+                <th>&le; 30 Days Count ⬍</th>
+                <th>31 &ndash; 60 Days ⬍</th>
+                <th>61 &ndash; 100 Days ⬍</th>
+                <th>&gt; 100 Days ⬍</th>
+              </tr>
+            </thead>
+            <tbody id="tatTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Daily Snapshot Trajectory -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2>📉 Daily Active Backlog & Bug Systematic Reduction (Live Snapshots)</h2>
+          <span>Sep 10 ➔ Oct 21: Steady Systematic Reduction from 65 down to 51</span>
+        </div>
+        <div class="chart-box" style="border:none; padding:0; box-shadow:none;">
+          <canvas id="dailySnapshotChart" height="90"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="dashboard-footer">
+      ASP Continuous Improvement Active & Performance Dashboard &bull; Live Client-Side Drag & Drop Refreshed &bull; Cisco Quality & Sustainment Engineering
+    </div>
+
+  </div>
+
+  <script>
+    // Initial Injected Datasets
+    let currentData = [{"ticket": "T206", "name": "UFD Drop Down", "desc": "THIS HAS TO BE CLOSED BY OCTOBER - \n\nHave the ability to autopopulate the fields with defined statements, like Incoming Inspection, they are standard responses, just click and populate, should be available on all the subheadings", "type": "Feature Enhancement", "priority": "High", "status": "Open", "raw_status": "Open", "age": 684, "status_age": 187, "raised_by": "Charlotte Hanley", "raised_on": "2024-12-05, 13:53:55", "eta": "2026-10-17T00:00:00Z", "url": ""}, {"ticket": "T276", "name": "Dashboard", "desc": "Have a graph on count of all RMAs received in the month, closed in the month, identify how many are late/ontime\n\nFor as long as it is open, - Total Opened, Open from that month\n\nTotal Overdue\n\nComing Due - Filter for FAR, QMS Non RMA\nFARs, \nCFARs\nCAPA\nAny way to Eff Checks separate?\n\nBreakdown of FA, QMS, Non RMA\n\n Review the metrics that are online currently and see if they are accurate! feed into our dashboard conversations\nTier 2 metrics, review with ROb, for relevance \n\nGraph filters needs location option\nWatchlist emails, Pending Approval, etc, All these should now be in the portal\n\n?\nHave a threshold of how many units are allowed to be defective for known failures.  Create an alert to notify when threshold is approaching. e.g. You predicted a DPPM of 1000 on this. You are on course for a DPPM of 5000. RMA is automatically added to watchlist.\n\nAlarm Bel Notifications, to become part of My Actions\n\n\nEarly Warning Alerts, 15-day, 21-day, and 27-day for in-warranty RMAs in the Repair Flow\no\tPlanning has asked to have alerts set to communicate status at 15 and 21 days from QC Receiving\no\tThe 15-day alert will trigger if the RMA hasn\u2019t progressed to RMAIW or RMAOW steps within 15 days.\no\tThe 21-day alert will trigger if the RMA hasn\u2019t progressed to CFG, None CFG, or Module Replace within 21 days.\no\tThe 27-day alert will trigger if the RMA hasn\u2019t passed the RMAGW (Gateway) within 27 days\nIf an alert is triggered, it will go on the \u201cRepair Flow Watch List\u201d report and remain there until a condition in logic removes it or a replacement is shipped to the customer.\n\n\n\n\no\tA module that is on the watch list due to the RMAIW/RMAOW trigger will remain on the list until it is cleared by the CFG, None CFG, or Module Replace step occurring \u201con-time\u201d within 21-days or the RMAGW PASS step is closed within 27-days.\no\tA module that is on the watch list due to the RMAIW/RMAOW trigger, then cleared by the CFG, None CFG, or Module Replace step occurring \u201con-time,\u201d then reappears if the RMAGW PASS step isn\u2019t completed within 27-days.\no\tA module that is on the watch list due to the CFG, None CFG, or Module Replace step occurring \u201con-time\u201d within-21-days can be cleared if the RMAGW PASS step is complete within 27-days.\no\tA module will appear on the watch list if the RMAGW PASS step isn\u2019t complete within 27-days.\n\n\nDefine criteria where certain RMAs on RMA watchlist are automatically added to the RMA hot lots.  Rob/ Akash to define criteria e.g. aging, customer escalation etc.\nIf they aren\u2019t in Repair Open by the 21st day, they need to be automatically added.\n\nFrom another ticket -Please have this as a downloadable option to be able to send to customers - use internally - Chart for the pdf download\n\n\n\n\nEarly Warning Alerts, 15-day, 21-day, and 27-day for in-warranty RMAs in the Repair Flow\no\tPlanning has asked to have alerts set to communicate status at 15 and 21 days from QC Receiving\no\tThe 15-day alert will trigger if the RMA hasn\u2019t progressed to RMAIW or RMAOW steps within 15 days.\no\tThe 21-day alert will trigger if the RMA hasn\u2019t progressed to CFG, None CFG, or Module Replace within 21 days.\no\tThe 27-day alert will trigger if the RMA hasn\u2019t passed the RMAGW (Gateway) within 27 days\nIf an alert is triggered, it will go on the \u201cRepair Flow Watch List\u201d report and remain there until a condition in logic removes it or a replacement is shipped to the customer.\n\nLogic flow will be something like this:\no\tA module that is on the watch list due to the RMAIW/RMAOW trigger will remain on the list until it is cleared by the CFG, None CFG, or Module Replace step occurring \u201con-time\u201d within 21-days or the RMAGW PASS step is closed within 27-days.\no\tA module that is on the watch list due to the RMAIW/RMAOW trigger, then cleared by the CFG, None CFG, or Module Replace step occurring \u201con-time,\u201d then reappears if the RMAGW PASS step isn\u2019t completed within 27-days.\no\tA module that is on the watch list due to the CFG, None CFG, or Module Replace step occurring \u201con-time\u201d within-21-days can be cleared if the RMAGW PASS step is complete within 27-days.\no\tA module will appear on the watch list if the RMAGW PASS step isn\u2019t complete within 27-days.\n\nThis shoudl include units that have moved from Quote to Repair Open and not moved >1day\nReview to Diagnosis ?>1day\n\n\nCan I update the daily FAR Watchlist Alert to include the following:\n\n1.\tModel\n2.\tCustomer\n3.\tFailure Source \n4.\tInclude RMAs with failure source RMA and location FPT with a FAR age of > 3 days and do not have a D4: L1 Root cause Defined status please. \n-\tInclude the FAR age\n-\tD2: Failure Description date. \n5.\tFor FARs with failure source RMA and location FPT- remove the requirement for RMA in Containment > 5 days. This will be covered by the new condition in point 4.\n6. Filter the file on Failure Source RMA.\n7.  Include FARs with failure source FAR and FA location FPT that have reached CAPA implementation with no D4: D4: L1 Root cause Defined status please. \n\n\nLayout and Visual Storytelling\n\n\u00b7 Dashboard Story:\n\no We want the dashboard to tell a story\n\no Some suggestions:\n\n\u00a7 Add an \"Executive Summary\" widget that provides a quarterly summary (e.g., \"Q1 saw a 10% increase in FA cycle time but internal approval lead time improved.\")\n\n\u00a7 Stagnant/ FARs- use \u2018time in step\u2019 heat maps so we can identify where FARs stall/ bottleneck indicator.\n\n\u00a7 Open FAR widget: Ability to drill down on the red (> 60 days) to show if are supplier investigations or FPT investigations etc.- bottleneck indicators.\n\n\u00b7 Visual Guidance: Use color coding, size, and position to guide the user's eye toward items that need attention.\n\n\u00b7 Process Flow: Organize the layout of the metrics to follow our actual process flow (as seen in my spreadsheet)?\n\n\u00b7 Data Currency: Need a \"Data as of [Date/Time]\" label so users know if they are looking at real-time or cached data.\n\n\u00b7 Open FAR is repeated twice- KPI and top metrics section.\n\n\nData Accuracy and Logic\n\n\u00b7 Customer List: Requested to use customer list form RMA FAs. Currently Dashboard has \"Cisco Italy\u201d, \u201cCisco GmbH\" \"II-VI\" and \"II-VI Photonics etc.\n\n\u00b7 Filter Issues: When I apply the customer filter, the \"FAR hot lot count\" does not change.\n\n\u00b7 Stagnant FARs: Exclude CAPA implementation.\n\n\u00b7 Open CAPA Definition: The \"Open CAPA\" widget currently shows the count of FARs with open CAPAs, rather than the count of open CAPAs themselves.\n\n\u00b7 CAPA Widget Scope: The \"Open CAPA\" widget should include FARs with a status of \"Internal Approval\" and \"D5/D7 implementation,\" as action due dates are agreed at those stage.\n\n\u00b7 Data Accuracy: Figures for \"Final root cause completion rate\" appear incorrect. For example, the final rate should be approximately 11-12% for RMA/FPT.\n\n\u00b7 Internal CAPA Approval: This graph is not displaying correctly at approver level. For example, a record has been in \"Internal Approval\" status for over 5 days, but it has not been with level 3 approver for over 5 days.\n\n\u00b7 Customer Request Tickets- Notifications when a ticket is moved to review. Erik will talk to this.\n\n\nTerminology and Definitions\n\n\u00b7 \"KPI Grid\": Don\u2019t think is a correct title- These are shortcuts to counts.\n\n\u00b7 \"Stagnant FARs\": Can we rename this to \"Stalled\" FARs? Maybe some else might have a better suggestion.\n\n\u00b7 Definitions/ Data dictionary: Add a legend or definition for the \"Green,\" \"Orange,\" and \"Red\" status indicators. What is a hit/ miss. What is stagnant.\n\n\u00b7 Header Labels:\n\no The header labeled \"Trend\" is misleading because it shows a current result, not a change over time.\n\no Top Metrics and Analysis- can this be Overall Process Performance.\n\n\nUsability and Navigation\n\n\u00b7 Consistency: The \"6-dot icon\" performs an action in some places but not others. Ensure icon behavior is consistent across the dashboard.\n\n\u00b7 Date Filters: Add \"From\" and \"To\" date range filters to allow for more specific data analysis.\n\n\u00b7 QMS FARs: How can I view widgets for QMS FARs? Do I need to click all failure sources and is that a mandatory field in QMS FA\n\nInbox Widget: Rename the \"Unread\" box to \"Inbox\" and reduce its size by approximately 50%.\nQuick Links: Remove the \"Quick Links\" box as it is redundant with the navigation list on the left-hand side.\nLayout Customization: Enable the ability to move and rearrange widgets to better prioritize relevant information.\nInformation Display: Add \"Failure Source,\" \"FA Location,\" and \"Owner\" fields to the main view for better visibility.\n\nFiltering & Data Functionality\n\nFilter Synchronization: Investigate and resolve the issue where applying filters (e.g., \"Microsoft\") does not update the associated tables or segment counts.\nBatch Drill-down: Ensure that clicking on a batch or specific number correctly redirects to the corresponding list of errors or \"hot lots.\"\nFailure Source Filtering:\nRename \"Failure Source\" to \"RMA.\"\nImplement a combined \"QMS\" filter to include production and non-RMA items.\nCustomer Filtering: Ensure the customer filter correctly isolates and displays all relevant records, including \"Occacia\" entries.\n\nMetrics & Reporting Enhancements\n\nOpen FA Breakdown: Sub-divide the \"Open FA\" widget into three categories: \"Open FAs,\" \"Non-RMA FAs,\" and \"QMS FAs.\"\nOverdue Logic: Standardize the overdue status indicators:\n< 15 days: Green\n15\u201330 days: Yellow\n60 days: Red\n\nQuarterly Trending: Add a \"Quarterly Summary\" widget that tracks progress over the last three months (e.g., Feb, March, April) rather than just a current snapshot.\nRMA Trending: Create a graph showing the total count of RMAs received per month over the last six months.\nMetric Definitions: Provide clear definitions or tooltips for the following metrics to ensure the team understands what is being reported:\nCycle Time\nRoot Cause Completion Rate\nAverage Processing Time\nUnit Effectiveness: Add a metric to track how many units were identified as \"not defective.\"\n\nThis is the information from Erik - I don't want to miss anything - \n\nThis is a comprehensive set of requirements for your RMA and Failure Analysis (FA) Dashboard. To help you move forward, I have reorganized and consolidated this information into a Functional Requirements & Development Plan.\n\n\nThis plan is structured into five key workstreams: UI/UX & Visual Storytelling, Core Metrics & Logic, Alerting & Automation, Data Integrity, and Reporting & Navigation.\n\n\n\nRMA & Failure Analysis Dashboard: Consolidation Plan\n\n1. UI/UX & Visual Storytelling\n\nGoal: Transform the dashboard from a collection of charts into a process-driven \"story\" that guides the user toward action.\n\n\nExecutive Summary Widget: Add a high-level quarterly summary (e.g., \"Q1 FA cycle time increased 10%, but internal approval lead time improved\").\nProcess Flow Layout: Reorganize widgets to follow the actual physical process flow (from Receiving to Repair to FA to Closure).\nVisual Cues & Heat Maps:\nUse \"Time in Step\" heat maps to identify bottlenecks.\nImplement consistent color coding: Green (<15 days), **Yellow** (15\u201330 days), **Red** (>60 days).\nTerminology Updates:\nRename \"Stagnant FARs\" to \"Stalled FARs.\"\nRename \"KPI Grid\" to \"Quick Counts\" or \"Status Shortcuts.\"\nRename \"Trend\" header to \"Current Performance\" (if not showing time-series data).\nRename \"Top Metrics\" to \"Overall Process Performance.\"\nData Currency: Add a visible \"Data as of [Date/Time]\" label.\n\n2. Core Metrics & Logic\n\nGoal: Ensure the math behind the KPIs is accurate and standardized.\n\n\nRMA Volume Tracking: Graph showing total RMAs received vs. closed per month, with a breakdown of Late vs. On-time.\nOpen FA Breakdown: Sub-divide \"Open FA\" into three distinct categories:\nRMA FAs\nNon-RMA FAs\nQMS FAs\nCAPA Logic Refinement:\nCount: The \"Open CAPA\" widget must count actual CAPAs, not the number of FARs associated with them.\nScope: Include FARs in \"Internal Approval\" and \"D5/D7 Implementation\" stages.\nEfficiency & Quality:\nSeparate Efficiency Checks into their own view.\nAdd a \"Unit Effectiveness\" metric (tracking units identified as \"not defective\").\nCorrect the \"Final Root Cause Completion Rate\" calculation (target ~11-12% for RMA/FPT).\n\n3. Alerting & Automation (The \"Watchlist\")\n\nGoal: Implement proactive triggers to prevent aging and manage high-risk units.\n\n\nRepair Flow \"Early Warning\" Alerts:\n15-Day Alert: Trigger if not progressed to RMAIW/RMAOW.\n21-Day Alert: Trigger if not progressed to CFG/None-CFG/Module Replace.\n27-Day Alert: Trigger if RMAGW (Gateway) is not passed.\nWatchlist Logic: Units stay on the \"Repair Flow Watch List\" until the next milestone is met or a replacement ships.\nHot Lot Automation:\nAutomatically move RMAs to \"Hot Lot\" status if they haven't reached \"Repair Open\" by Day 21.\nInclude criteria for customer escalations and aging.\nDPPM Threshold Alerts:\nSet predictive thresholds for known failures.\nExample: If predicted DPPM is 1000 but actual is trending toward 5000, trigger an alert and add to Watchlist.\nDaily FAR Watchlist Email Updates: Include Model, Customer, Failure Source, FAR Age, and D2: Failure Description Date.\n\n4. Data Integrity & Filtering\n\nGoal: Fix synchronization issues and clean up the data source.\n\n\nFilter Synchronization: Resolve issues where the \"Customer\" filter (e.g., Microsoft, Occacia) fails to update associated tables or \"Hot Lot\" counts.\nCustomer List Normalization: Clean up the list to remove duplicates/variants (e.g., consolidate \"Cisco Italy,\" \"Cisco GmbH,\" and \"II-VI\" entities).\nDrill-Down Functionality: Ensure clicking any aggregate number (e.g., \"5 Overdue\") redirects the user to the specific filtered list of those 5 records.\nExclusions: Exclude \"CAPA Implementation\" from the \"Stalled FARs\" metric to avoid skewing aging data.\n\n5. Reporting & Navigation\n\nGoal: Improve how users interact with and export data.\n\n\nInbox & Navigation:\nRename \"Unread\" to \"Inbox\" and reduce size by 50%.\nRemove \"Quick Links\" (redundant with left-hand nav).\nEnable Widget Rearrangement (drag-and-drop) for user customization.\nData Visibility: Add \"Failure Source,\" \"FA Location,\" and \"Owner\" fields to the primary dashboard view.\nExternal Reporting: Add a \"Download as PDF\" option for charts/tables to facilitate sharing updates with customers.\nQuarterly Trending: Add a widget tracking progress over a rolling 3-month window (e.g., Feb/Mar/Apr).\n\n\nNext Steps for Review:\n\nValidation: Does the 15/21/27-day logic align with the current Repair Flow capabilities?\nPrioritization: Which of these should be implemented first (e.g., Data Accuracy vs. UI Layout)?\nTier 2 Metrics: Schedule the review with Rob to confirm which Tier 2 metrics remain relevant for the portal.", "type": "Feature Enhancement", "priority": "High", "status": "Open", "raw_status": "Open", "age": 652, "status_age": 623, "raised_by": "Charlotte Hanley", "raised_on": "2025-01-06, 14:55:12", "eta": "2025-08-30T23:00:00Z", "url": ""}, {"ticket": "T320", "name": "Customer Specific Requirements", "desc": "There is a lot of specific requirements for the customer, is there a way where we could get a way of having the requirements of the customer, would have to be controlled and editable as they happen a lot changes happen - Potentially have an indicator with special conditions - a post it note of the customer specific requirements", "type": "Change Request", "priority": "Low", "status": "Open", "raw_status": "Open", "age": 615, "status_age": 609, "raised_by": "Charlotte Hanley", "raised_on": "2025-02-12, 16:43:21", "eta": "2025-10-24T23:00:00Z", "url": ""}, {"ticket": "T332", "name": "Viewer Profile", "desc": "There is evidence that the FA/PSR Viewer profiles are different, this should be a solely read only access  , no send capability - Matrix on viewer profile to be provided", "type": "Bug", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 593, "status_age": 461, "raised_by": "Charlotte Hanley", "raised_on": "2025-03-06, 14:49:18", "eta": "2025-10-14T23:00:00Z", "url": ""}, {"ticket": "T387", "name": "Quotes", "desc": "For ZTE , Accelink and Pangea - II-IV, Tejas, Sintai - All quote emails should default to send to pengqu@cisco.com Peng -", "type": "Change Request", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 475, "status_age": 183, "raised_by": "Charlotte Hanley", "raised_on": "2025-07-03, 10:45:57", "eta": "2025-09-25T23:00:00Z", "url": ""}, {"ticket": "T392", "name": "FARs", "desc": "Make it obvious which files relates to which CAPA - Could they be linked in the body of the FAR and pull into the D5-D7 Headings - at least have a title of the pdf or at the very minimum a name of the file\n\nKeep it optional.", "type": "Action", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 474, "status_age": 376, "raised_by": "Charlotte Hanley", "raised_on": "2025-07-03, 15:15:52", "eta": "2026-10-30T00:00:00Z", "url": ""}, {"ticket": "T407", "name": "Stop RMA Creation when a unit is already scrapped", "desc": "We can refer to the final unit determination and if it is \"Scrap/Scrapped\" then mark that Serial number and showcase an exception message if someone tries to create an RMA with the same SN later. It could be done for RMA creation using the existing process as well as the chatbot.", "type": "Change Request", "priority": "High", "status": "Open", "raw_status": "Open", "age": 434, "status_age": 432, "raised_by": "Charlotte Hanley", "raised_on": "2025-08-13, 10:36:24", "eta": "2026-06-26T23:00:00Z", "url": ""}, {"ticket": "T431", "name": "Translate/AI Rewrite function", "desc": "Can we integrate Circuit into the tool for easier documentation for the team.\n\n\nEg\nAfter bringing the module to test, it boots up to the high power mode successfully.\nThe module\u2019s RX coherent channel power is low at -8.6 dBm when TX power is set to -5 dBm.\nThe ITLA report shows normal power values at TX 17 dBm and RX 10 dBm.\nThe RFPD current in the module is very low at 3.3 mA (expected > 6 mA).\nThe Glass Box TX path LO and RX part LO red lights show no abnormalities.\nThe ITLA power of RX part measurement is 5.54 dBm, which is lower than the KGU\u2019s 8.13 dBm.\nAfter swapping the KGU ITLA RX part into the UUT module, the RFPD and RX coherent channel power improved.\nAfter swapping the UUT ITLA RX part into the KGU module, the RFPD and RX coherent channel power worsened.\nOn the eval board, the UUT ITLA RX part shows a lower power measurement than the KGU at MAX power setting. translate this to Thai\n\nHere is your text translated to Thai:\n\n\n??????????????????????? ????????????????????????????????????????????\n??? power ??? RX coherent channel ????????????? -8.6 dBm ????? TX power ????????????? -5 dBm\n?????? ITLA ????????????????????? TX 17 dBm ??? RX 10 dBm\n????? RFPD ???????????????? 3.3 mA (??????????????? 6 mA)\n?? Glass Box ??? TX path LO ??? RX part LO ??????????????????\n???????????????? ITLA ??? RX part ??????? 5.54 dBm ????????????????? KGU ??? 8.13 dBm\n??????????? RX part ??? ITLA ??? KGU ????????????? UUT ??? RFPD ??? RX coherent channel power ??????\n??????????? RX part ??? ITLA ??? UUT ????????????? KGU ??? RFPD ??? RX coherent channel power ?????\n?? eval board, RX part ??? ITLA ??? UUT ????????????????????? KGU ????????????? MAX power", "type": "Feature Request", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 376, "status_age": 14, "raised_by": "Charlotte Hanley", "raised_on": "2025-10-09, 16:21:30", "eta": "2026-07-18T00:00:00Z", "url": ""}, {"ticket": "T494", "name": "Add new filters in RMA combined reporting tool service", "desc": "Requested by Rob - \nadd additional filters: main failure, fault source, failure mode, FA location and action code", "type": "Feature Enhancement", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 238, "status_age": 188, "raised_by": "Krishna Bisen", "raised_on": "2026-02-25, 09:49:35", "eta": "2026-06-30T00:00:00Z", "url": ""}, {"ticket": "T515", "name": "Notes", "desc": "When I read a note from a thread that I have been tagged in a couple of times, it should remove all tags, so that I don't keep on going back to the same notes history again and again", "type": "Change Request", "priority": "High", "status": "Open", "raw_status": "Open", "age": 210, "status_age": 40, "raised_by": "Charlotte Hanley", "raised_on": "2026-03-24, 15:27:40", "eta": "2026-06-12T23:00:00Z", "url": ""}, {"ticket": "T516", "name": "RMA request further information", "desc": "Create a record request , that we could send out to the POC directly from the RMA report and they can document and it would pull into the record for review by the whole team?  Katelyn would create under the RMA table and it would pull back in to the main record - Think about would there be specific dropdown questions - Is it the same questions always asked that we could simplify it", "type": "Feature Enhancement", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 210, "status_age": 188, "raised_by": "Charlotte Hanley", "raised_on": "2026-03-24, 16:12:10", "eta": "2026-09-18T00:00:00Z", "url": ""}, {"ticket": "T524", "name": "How do we Demonstrate that CAPAs are moved to EFF Check Phase", "desc": "It should be possible to see what is in EFF Check and what is coming due visually from the main page - Is this possible without changing the flow of the approval loops\n?", "type": "Feature Enhancement", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 186, "status_age": 180, "raised_by": "Charlotte Hanley", "raised_on": "2026-04-17, 13:50:01", "eta": "2026-08-15T00:00:00Z", "url": ""}, {"ticket": "T528", "name": "Stop FA being sent to approval with overdue CAPA actions.", "desc": "Ticket T099 blocked creating a CAPA plan with overdue open CAPA actions. If a CAPA due date becomes overdue after creating the CAPA plan and before sending the FA to internal CAPA Approval, it is not stopped.  Need a gate to stop a FA being sent to Internal CAPA  approval with overdue actions.  \n\nImplement on all FAs. \n\nExamples: 1000483", "type": "Feature Enhancement", "priority": "High", "status": "Open", "raw_status": "Open", "age": 183, "status_age": 182, "raised_by": "Emer  Ryan", "raised_on": "2026-04-21, 10:07:03", "eta": "2026-10-30T00:00:00Z", "url": ""}, {"ticket": "T533", "name": "Chatbot - Physical Damage Image Library", "desc": "Example Hyve do not provide descriptive Repair instructions \" Fix Module\"- We need the bot to recognise that there is a gap in the  - Perhaps image recognition on physical damage", "type": "Feature Enhancement", "priority": "High", "status": "Open", "raw_status": "Open", "age": 180, "status_age": 180, "raised_by": "Charlotte Hanley", "raised_on": "2026-04-23, 14:59:45", "eta": "2026-10-09T00:00:00Z", "url": ""}, {"ticket": "T550", "name": "Logging of users in change log", "desc": "Changes made by all personnel, Acacia, Cisco, Fabrinet, or Tallgrass should be reflected in the change log as the actual users name making the change. Currently changes made by Tallgrass are reflected as Acacia in the change log, this also occurs in the Created by Field. Record keeping guidelines require changes made by personnel to reflect the name of said personnel. See T087 or T437 as example.", "type": "Change Request", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 154, "status_age": 154, "raised_by": "Erik Cetaruk", "raised_on": "2026-05-19, 13:21:37", "eta": "2026-06-19T00:00:00Z", "url": ""}, {"ticket": "T554", "name": "38451- Customer Name change", "desc": "Customer name has been changed from META to CISCO. Ref change log- reports sent referenced META.  This is a Master FA. FA report was sent to Meta, as META was the customer at the time. If this Master FA is referenced in CISCO RMAs going forward, CISCO have not received the Master FA report. \nWhy the customer name change? Maybe META was end customer?.", "type": "Action", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 153, "status_age": 148, "raised_by": "Emer  Ryan", "raised_on": "2026-05-21, 08:55:03", "eta": "2026-08-14T00:00:00Z", "url": ""}, {"ticket": "T569", "name": "FAR Sources", "desc": "The following changes are required: \n\n1. Have a: RMA: Supplier FA  RMA: CM  \n\n2. Have new title: Failure Source to change FAR Type\n\nNew radio button options: \nCFAR Escalation \nCustomer Escalation\nEngineering Investigation /Escalation - Remove Engineering RMA Escalation\n\nIt should be RMA default and then Alphabetical after that\n\nEmer: Can we add hover over and get definitions please. \nFor SA.IA include required classification of Ma/Mi/OFI\n\nDefinitions: RMA: Supplier FA: Component supplier conducts root cause analysis..  \n                    RMA: CM: Contract manufacturer conducts root cause analysis.  \n                \n\nEmer's additions: Please ensure affected Smart rules/ alerts/ reports/ and dashboard reflects these changes: \n1. FAR Approval Smart Rules (failure source drop down). \n2 FAR combined report\n3. Extended FAR TAT report\n4,  Rejected FARs (daily alert) \n5. FAR Watchlist\n6. FAR Approval pending ( daily Alert). \n7. Assess impact on Dashboard filters. Also, consider how will FAs with the old failure source labels be grouped/ linked with the newer labels in the dashboard graphs. etc. (Supplier FA vs Other category (old label), Engineering escalation category vs newer labels).  \n\n\n1. Added RMA: Supplier FA to address my intent in T559. i will close T559.\n2. Added RMA: Acacia. I am looking for an option to capture FAs where the RMA is received into AMU and AMU conduct root cause (e.g. AMU RMAs with CFG config issues/ design etc- no CFAR, no CM). These are not escalations from FPT but maybe these should fall into one of your escalation categories?\n3. Do we need the failure sources Supplier audit/ internal audit/ ORM/ORT/ production in the revised list. These usually sit in the QMS FAR space rather than standard RMA based investigations.\n3. Add hover over tool tips for FAR type labels so the definitions are clear to everyone. I have added RMA: CM, RMA: Supplier FA and RMA: Acacia to the ticket.\n4. Suggest FAR Route/ FAR workflow instead of FAR type but Happy with FAR type if everyone thinks its the most effective term.\n5. Impact on smart rules/ alerts/notifications/ dashboard where failure source is used- I have added to the ticket.\n\nPlease the list is the same on both sides -", "type": "Action", "priority": "High", "status": "Open", "raw_status": "Open", "age": 130, "status_age": 110, "raised_by": "Charlotte Hanley", "raised_on": "2026-06-12, 15:12:16", "eta": "2026-09-19T00:00:00Z", "url": ""}, {"ticket": "T570", "name": "FA Approval: Smart Rule creation", "desc": "Creating Smart Rule for a new customer 'Shenzhen'. There are 2 Shenzhen present. Please standardize with RMA Customer list. Seen snip", "type": "Fault Resolution", "priority": "High", "status": "Open", "raw_status": "Open", "age": 127, "status_age": 127, "raised_by": "Emer  Ryan", "raised_on": "2026-06-16, 08:48:50", "eta": "2026-06-23T00:00:00Z", "url": ""}, {"ticket": "T577", "name": "Quote - Add FA/Pictures", "desc": "While I acknowledge the information in the quote report, I typically require the preliminary or service report to understand the direction of the FA process. The repair report should also indicate whether an FA is required or not.\nThis allows me\u00a0to decide whether to wait for the final FAR or to immediately bring the matter to the Cisco team for discussion. The quote report alone is insufficient because it sometimes mentions broken or damaged parts without including the corresponding pictures.\n\nLock CBMRMA into all Quote reports", "type": "Feature Enhancement", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 112, "status_age": 110, "raised_by": "Charlotte Hanley", "raised_on": "2026-07-01, 09:32:29", "eta": "2026-08-15T00:00:00Z", "url": ""}, {"ticket": "T579", "name": "D5:D7 CAPA Implementation Notification", "desc": "Can we add failure source to this notification please?  May need to consider T569 on the proposed changes to failure source.", "type": "Action", "priority": "Low", "status": "Open", "raw_status": "Open", "age": 112, "status_age": 14, "raised_by": "Emer  Ryan", "raised_on": "2026-07-01, 10:41:52", "eta": "2026-09-12T00:00:00Z", "url": ""}, {"ticket": "T585", "name": "CFAR Table", "desc": "Add Component PN, Remove Date, Move Supplier and ACA SN and PN next to each other, have Severity after Status, CFAR and Supplier age, should be last columns, Add columns, Acacia Component PN, Component Supplier PN, Component Supplier SN, Component Supplier Lot Code\n\nHave the ability to download the table from the main table view\n\nAdditionally, a minor change. Remove Supplier SN and replace it with Supplier name, we do not need supplier SN on the landing page.\n\non CFAR Table - remove the hashtag on the CFAR Column - CFAR#", "type": "Action", "priority": "High", "status": "Open", "raw_status": "Open", "age": 102, "status_age": 96, "raised_by": "Charlotte Hanley", "raised_on": "2026-07-10, 15:57:48", "eta": "-", "url": ""}, {"ticket": "T592", "name": "RMA Status check  -", "desc": "Pending Receipt, Diagnosis, Quotation, Repair, Repair Closed.\n\nPending Failure Analysis\nAnything prior to FA owner assignment (D2: Failure Description)\n\nUnder Failure Analysis\nAny status between D2: Failure Description and when the final FA report has been sent to customer.\n\nFailure Analysis Report Approved\nFinal FA is Approved\n\nThe chatbot will need to distinguish between IW vs OOW cases, so it is aware that repair closed ( or the agreed RMA Assistant status name) is the final status for OOW cases.\n\nIf FA is unchecked on IW RMAs, Assistant will need to show repair closed as final status update for that RMA.\n\nCould we have a visual bar, showing the progress - Repair 4/4, FA 3/3?\nCould we link in the report that was latest report that was sent, exactly as it was? It would need to be the exact one, or else don't put it in. \n\nYou should be able to check more than just the last 5 numbers, you should be able to input mutiplie numbers, and could it give a summary/downloadable report?\nAuto populate the report send line to the RMA Creator.", "type": "Action", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 82, "status_age": 82, "raised_by": "Charlotte Hanley", "raised_on": "2026-07-30, 14:14:36", "eta": "-", "url": ""}, {"ticket": "T598", "name": "SN Shipment report", "desc": "In the reporting tool, there is a SN Shipment Report. It has only 1 column choice. Users need to be able to define which model number they are searching for. Otherwise the result is all models, all serial numbers, 1.5 million lines, a 300MB file. It is an unmanageable result.", "type": "Feature Enhancement", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 69, "status_age": 56, "raised_by": "Erik Cetaruk", "raised_on": "2026-08-12, 17:10:33", "eta": "2026-11-30T00:00:00Z", "url": ""}, {"ticket": "T609", "name": "Serial Number Review", "desc": "Notification feature when a requested RMA is submitted for serial number review from the RMA Assistant.", "type": "Feature Enhancement", "priority": "Low", "status": "In Review", "raw_status": "Review", "age": 53, "status_age": 16, "raised_by": "Katelyn Kenney", "raised_on": "2026-08-28, 17:53:26", "eta": "2026-09-18T00:00:00Z", "url": ""}, {"ticket": "T610", "name": "D4:L1 Root Cause defined", "desc": "FAR 35849 moved through the process without a D4:L1 root cause defined status. The gates in place should have prevented this.\n\nTicket update 09 Sept 2026: Currently Admins and superadmins can by pass this gate. Update the gate to ensure that no one can by pass this gate.", "type": "Bug", "priority": "High", "status": "Open", "raw_status": "Open", "age": 50, "status_age": 42, "raised_by": "Emer  Ryan", "raised_on": "2026-09-01, 10:56:56", "eta": "2026-09-19T00:00:00Z", "url": ""}, {"ticket": "T612", "name": "300001000047097 - Pulling back into Diagnostic Review", "desc": "When in quote, this gets pulled back, can you ensure that this flow is not impacted - Should not be allowed into Diagnostic Review with blanks, discussed on call 24/09/26\n\nDuplicate NFFs - Maybe this is also in another ticket - Adding this here - TG not pull data from FITS when we send to continue test after this module complete RMA FST/ESS/EXS (Hold in Eng review for review data before release to next step) and move to continue test and shipment. 300001000042845", "type": "Bug", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 48, "status_age": 26, "raised_by": "Charlotte Hanley", "raised_on": "2026-09-03, 09:23:46", "eta": "-", "url": ""}, {"ticket": "T613", "name": "Notifications", "desc": "Feedback from a user is that they would prefer if it was clearer if the Tag was specific for them, It says you have been tagged - Should include information on everyone that has been tagged? Let's review this together for your thoughts on it", "type": "Action", "priority": "Low", "status": "Open", "raw_status": "Open", "age": 47, "status_age": 0, "raised_by": "Charlotte Hanley", "raised_on": "2026-09-03, 12:28:58", "eta": "2026-11-27T00:00:00Z", "url": ""}, {"ticket": "T614", "name": "Emer Kelly", "desc": "This profile is available for selection when adding a comment - this should not be available\n\nYou can tag Emer Kelly on the FAR notes. There is also two Apinyas", "type": "Bug", "priority": "High", "status": "Open", "raw_status": "Open", "age": 46, "status_age": 16, "raised_by": "Charlotte Hanley", "raised_on": "2026-09-04, 12:25:42", "eta": "2026-09-30T00:00:00Z", "url": ""}, {"ticket": "T615", "name": "CFAR Required", "desc": "Can you move the CFAR moved up further in the process - Review with Emer, should it even go into D3?\n\nMove to higher in D2\n\nBelow Failure Source", "type": "Action", "priority": "Low", "status": "Open", "raw_status": "Open", "age": 46, "status_age": 42, "raised_by": "Charlotte Hanley", "raised_on": "2026-09-04, 13:32:15", "eta": "2026-10-23T00:00:00Z", "url": ""}, {"ticket": "T616", "name": "D3 Containment", "desc": "For the Corrections, should we not have little boxes that have action to be completed and then the completion dates _\n\nCAn we also remove is this happening in other locations?\nIs the first question really a repeating the same thing?\n Review with Emer/Erik Discussed at today's call 20/10/2026", "type": "Action", "priority": "Low", "status": "Open", "raw_status": "Open", "age": 46, "status_age": 0, "raised_by": "Charlotte Hanley", "raised_on": "2026-09-04, 13:33:35", "eta": "2026-12-19T00:00:00Z", "url": ""}, {"ticket": "T618", "name": "Customer SN Review", "desc": "Ability to view draft RMA when in serial review (right now I can only view if I add the SN even if it is not correct to the install base).", "type": "Change Request", "priority": "Low", "status": "Open", "raw_status": "Open", "age": 43, "status_age": 14, "raised_by": "Krishna Bisen", "raised_on": "2026-09-08, 06:06:32", "eta": "2026-11-28T00:00:00Z", "url": ""}, {"ticket": "T619", "name": "How do we integrate My Agent in here?", "desc": "MyAgent is going to be a very central part of Cisco going forward - Can we consider how the portal could interface with it? Will need a team discussion on this - Scoping this out can we just discuss this", "type": "Feature Enhancement", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 41, "status_age": 14, "raised_by": "Charlotte Hanley", "raised_on": "2026-09-09, 12:11:58", "eta": "2026-11-27T00:00:00Z", "url": ""}, {"ticket": "T620", "name": "\u201cAffected System\u201d field is being auto populated in TG", "desc": "Rob, It appears that the \u201cAffected System\u201d field is being auto populated in TG and is not being sourced from FITs. Could you review the logic governing this field?", "type": "Bug", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 41, "status_age": 28, "raised_by": "Charlotte Hanley", "raised_on": "2026-09-10, 10:22:31", "eta": "2026-09-30T00:00:00Z", "url": "https://service-analytics.acacia-inc.com/repair-service/repair/repair-detail?rma_dim_id=MTY2OTA%3D&back=repair_unread"}, {"ticket": "T621", "name": "ASP Dev Access on Cisco Network", "desc": "Charlotte and other people in cisco network are not able to use the ASP Dev environment", "type": "Fault Resolution", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 40, "status_age": 14, "raised_by": "Krishna Bisen", "raised_on": "2026-09-10, 12:11:29", "eta": "-", "url": ""}, {"ticket": "T622", "name": "Storage location in Portal for training videos", "desc": "Would be beneficial to have a storage location within the portal for training videos, so new users can refer to them for strengthening skills for portal use. (Emer's idea) It would be under its own heading and easy to locate.", "type": "Feature Request", "priority": "High", "status": "Open", "raw_status": "Open", "age": 40, "status_age": 28, "raised_by": "Erik Cetaruk", "raised_on": "2026-09-10, 12:49:40", "eta": "-", "url": ""}, {"ticket": "T623", "name": "Multiple RMA acknowledgement form download feature", "desc": "In RMA Service Operations we should be able download multiple RMA Acknowledgement forms at once by multi select all in a single zip folder.", "type": "Feature Enhancement", "priority": "Low", "status": "Open", "raw_status": "Open", "age": 40, "status_age": 0, "raised_by": "Krishna Bisen", "raised_on": "2026-09-11, 08:18:58", "eta": "2026-10-30T00:00:00Z", "url": ""}, {"ticket": "T625", "name": "In active accounts- alerts", "desc": "If an account is made inactive, they should automatically be removed from alerts they have subscribed to. For example- Tom Ennis is still on the Rejected FARs alert.", "type": "Action", "priority": "Medium", "status": "In Review", "raw_status": "Review", "age": 33, "status_age": 0, "raised_by": "Emer  Ryan", "raised_on": "2026-09-17, 12:44:52", "eta": "2026-09-22T00:00:00Z", "url": ""}, {"ticket": "T628", "name": "Add Reference 2 and Error Code Field to RMA Creation Workflow", "desc": "We need to add reference 2 and a new field for error code in the RMA assistant workflow and add error code field to the existing RMA form.", "type": "Feature Enhancement", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 33, "status_age": 0, "raised_by": "Katelyn Kenney", "raised_on": "2026-09-17, 18:24:20", "eta": "2026-10-30T00:00:00Z", "url": ""}, {"ticket": "T629", "name": "New Reports", "desc": "Can i please get a daily report to my inbox of All the NON Rma FARs, QMS FARs and Repair Backlog", "type": "Action", "priority": "High", "status": "In Review", "raw_status": "Review", "age": 33, "status_age": 5, "raised_by": "Charlotte Hanley", "raised_on": "2026-09-18, 08:46:22", "eta": "2026-09-25T00:00:00Z", "url": ""}, {"ticket": "T632", "name": "Add Reference Fields to RMA Page", "desc": "Add Customer Ref 1 and Ref 2 to the RMA page in the Repair Workflow. See Katelyn for additional information.", "type": "Change Request", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 28, "status_age": 0, "raised_by": "Rob Linebarger", "raised_on": "2026-09-22, 12:44:54", "eta": "2026-10-30T00:00:00Z", "url": ""}, {"ticket": "T634", "name": "Logging Rephrase feature in Change logs", "desc": "Whenever any text field will be rephrased, the same should be logged in the change logs", "type": "Action", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 22, "status_age": 0, "raised_by": "Rutuja Padekar", "raised_on": "2026-09-29, 06:56:36", "eta": "2026-11-28T00:00:00Z", "url": ""}, {"ticket": "T635", "name": "Customer Contact as a Distribution group", "desc": "Do we have the ability to link the customer contact in requested RMAs to distribution group (more than one email will receive confirmation/ RMA form for tracking)? For RMA assistant is it possible to link customer accounts as a \"distribution group\" for the same purpose of multiple emails getting the confirmation and reminder emails?", "type": "Feature Enhancement", "priority": "Low", "status": "Open", "raw_status": "Open", "age": 21, "status_age": 0, "raised_by": "Katelyn Kenney", "raised_on": "2026-09-29, 19:51:26", "eta": "-", "url": ""}, {"ticket": "T636", "name": "300001000047364", "desc": "Review with Rob - Please create a smart rule when X-ray is the Action Code that populates Main Failure - Component Defect and Fault Source - Repair", "type": "Bug", "priority": "Medium", "status": "Raised", "raw_status": "Raised", "age": 21, "status_age": 21, "raised_by": "Charlotte Hanley", "raised_on": "2026-09-30, 07:21:52", "eta": "-", "url": ""}, {"ticket": "T637", "name": "PCN-0362", "desc": "Ensure that this is all blocked:\n\nAcacia is issuing a Product Discontinuation Notice to ZTE, Sky DSP based CFP \u2013 Gen1 and Gen 2 Gold boxes\n\nAt this time, parts and/or material needed to repair common failure modes for this product are no longer commercially available therefore there will be a Discontinuation of RMA Service Notice effective 2026-August-31.\n\nAs of the effective date of this Notice, no Return Material Authorization (RMA) Requests will be accepted or processed for this Product group(s).", "type": "Action", "priority": "High", "status": "Open", "raw_status": "Open", "age": 21, "status_age": 14, "raised_by": "Charlotte Hanley", "raised_on": "2026-09-30, 08:22:43", "eta": "2026-11-27T00:00:00Z", "url": ""}, {"ticket": "T638", "name": "FA Match Maker", "desc": "implement a targeted AI search: \n\u2022\tDrop the repair report into the portals search function. \n\u2022\tAI \"pre-filters\" the results using the repair debug conclusions, component part number etc.  \n\u2022\tHighlight the most relevant matches (e.g., \"Found 12 previous FA reports, QMS FARs but these 3 are the most likely candidates for your current failure mode\"). \n\u2022\tThe portal would also provide me with any current RMAs for this specific failure mode in the repair side.", "type": "Feature Request", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 14, "status_age": 14, "raised_by": "Emer  Ryan", "raised_on": "2026-10-06, 12:56:22", "eta": "-", "url": ""}, {"ticket": "T640", "name": "Report Request", "desc": "Thanat is looking for a TAT report to track TAT of QMS FARs.\nIs the extended FAT TAT report currently the best option? He will have to filter out the RMA FARs or is there a separate QMS FAR TAT alert/report that i am unaware of?\nHe is looking to receive a regular report rather than going in and downloading a report.", "type": "Action", "priority": "Low", "status": "Raised", "raw_status": "Raised", "age": 14, "status_age": 14, "raised_by": "Charlotte Hanley", "raised_on": "2026-10-07, 12:08:50", "eta": "-", "url": ""}, {"ticket": "T642", "name": "Review the Watchlists", "desc": "Are the watchlists and notifications that go out - are they still relevant?\n\nShould these be in the Webex Chat Bot ?\nGet feedback from FBN\nEmer\nMark\nErik\nKatelyn\nRMA Team, brendan, N and J", "type": "Action", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 12, "status_age": 0, "raised_by": "Charlotte Hanley", "raised_on": "2026-10-08, 16:15:53", "eta": "2026-11-27T00:00:00Z", "url": ""}, {"ticket": "T643", "name": "Repair Console", "desc": "Repair Console PFA", "type": "Feature Request", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 12, "status_age": 4, "raised_by": "Acacia", "raised_on": "2026-10-09, 11:51:35", "eta": "2026-12-19T00:00:00Z", "url": ""}, {"ticket": "T645", "name": "Bimmer Access", "desc": "Create a Bimmer only QMS Table", "type": "Feature Enhancement", "priority": "High", "status": "Open", "raw_status": "Open", "age": 8, "status_age": 4, "raised_by": "Charlotte Hanley", "raised_on": "2026-10-12, 15:05:55", "eta": "2026-11-27T00:00:00Z", "url": ""}, {"ticket": "T647", "name": "Add prefix on QMS SN", "desc": "Add prefix on QMS SN - To avoid duplication of SN", "type": "Feature Enhancement", "priority": "Medium", "status": "Open", "raw_status": "Open", "age": 5, "status_age": 0, "raised_by": "Acacia", "raised_on": "2026-10-16, 10:01:52", "eta": "2026-10-30T00:00:00Z", "url": ""}, {"ticket": "T648", "name": "Required fields not requiring populating.", "desc": "Case 1000481, Containment tab, Containment required was checked Yes, a required field. The field below Please enter Immediate Containment Action * is also required. But this case came to me for approvals with the second field blank. Required fields should require populating. Check if this is a timing issue, was the required field became a required field after the date of the D3 completion", "type": "Bug", "priority": "High", "status": "Open", "raw_status": "Open", "age": 1, "status_age": 0, "raised_by": "Erik Cetaruk", "raised_on": "2026-10-19, 14:45:23", "eta": "2026-10-30T00:00:00Z", "url": ""}];
+    let weeklyClosed = [{"ticket": "T646", "name": "Smart Rule Report : FA approval", "type": "Action", "priority": "High", "tat_days": 3, "created_date": "13-Oct-2026", "closed_date": "16-Oct-2026", "raised_by": "Emer Ryan", "category": "\u26a1 Fast Track (3d)", "desc": "Automated smart rule generation for FA approval sign-offs."}, {"ticket": "T644", "name": "RMA Creation Table search is not working", "type": "Bug", "priority": "High", "tat_days": 9, "created_date": "10-Oct-2026", "closed_date": "19-Oct-2026", "raised_by": "Charlotte Hanley", "category": "\u26a1 Fast Track (9d)", "desc": "Fixed table search indexing in portal RMA creation view."}, {"ticket": "T641", "name": "RMA Creation Nathawit cases intake in portal", "type": "Bug", "priority": "Medium", "tat_days": 12, "created_date": "07-Oct-2026", "closed_date": "19-Oct-2026", "raised_by": "Charlotte Hanley", "category": "\u26a1 Fast Track (12d)", "desc": "Resolved case routing for Nathawit customer intake."}, {"ticket": "T639", "name": "D4:L1 Root Cause Review Alerts", "type": "Fault Resolution", "priority": "High", "tat_days": 14, "created_date": "07-Oct-2026", "closed_date": "21-Oct-2026", "raised_by": "Erik Cetaruk", "category": "\u26a1 Fast Track (14d)", "desc": "Enforced forward gate alerts on root cause assignment."}, {"ticket": "T633", "name": "Ready Customer Report Bug / Reports Not Being Sent", "type": "Bug", "priority": "Medium", "tat_days": 27, "created_date": "22-Sep-2026", "closed_date": "19-Oct-2026", "raised_by": "Katelyn Kenney", "category": "\u26a1 Fast Track (27d)", "desc": "Fixed report distribution scheduler and email dispatch."}, {"ticket": "T611", "name": "Change user for RMA create status", "type": "Action", "priority": "Medium", "tat_days": 46, "created_date": "03-Sep-2026", "closed_date": "19-Oct-2026", "raised_by": "Krishna Bisen", "category": "\ud83c\udfaf Within Target (46d)", "desc": "Updated permission and user assignment logic on RMA creation."}, {"ticket": "T589", "name": "CFAR record (Subcomponent Part Number field)", "type": "Action", "priority": "Medium", "tat_days": 97, "created_date": "15-Jul-2026", "closed_date": "20-Oct-2026", "raised_by": "Emer Ryan", "category": "\ud83d\udce6 Resolved (97d)", "desc": "Added subcomponent part number capture in CFAR layout."}, {"ticket": "T257", "name": "Reports (FA notification differentiation)", "type": "Change Request", "priority": "High", "tat_days": 677, "created_date": "13-Dec-2024", "closed_date": "20-Oct-2026", "raised_by": "Charlotte Hanley", "category": "\ud83c\udfc6 Legacy Debt Cleared (677d)", "desc": "Differentiated notification channels for internal vs customer FA reports."}, {"ticket": "T227", "name": "Investigation Detail and Conclusion Field", "type": "Feature Enhancement", "priority": "Medium", "tat_days": 683, "created_date": "07-Dec-2024", "closed_date": "20-Oct-2026", "raised_by": "Charlotte Hanley", "category": "\ud83c\udfc6 Legacy Debt Cleared (683d)", "desc": "Implemented dedicated investigation conclusions field in ASP portal."}, {"ticket": "T087", "name": "Aging on FARs", "type": "Change Request", "priority": "High", "tat_days": 852, "created_date": "20-Jun-2024", "closed_date": "20-Oct-2026", "raised_by": "Acacia", "category": "\ud83c\udfc6 Legacy Debt Cleared (852d)", "desc": "Automated aging calculations across active FAR records."}];
+    let sliceMetrics = {"ALL": {"label": "All-Time History", "total_requested": 631, "total_resolved": 554, "resolution_rate": 87.8, "mean_tat": 85.3, "median_tat": 55.0, "pct_le60": 54.9, "le30": 176, "d31_60": 128, "d61_100": 101, "gt100": 149}, "Y_2026": {"label": "Year 2026", "total_requested": 179, "total_resolved": 132, "resolution_rate": 73.7, "mean_tat": 54.7, "median_tat": 49.0, "pct_le60": 63.6, "le30": 49, "d31_60": 35, "d61_100": 32, "gt100": 16}, "Y_2025": {"label": "Year 2025", "total_requested": 191, "total_resolved": 184, "resolution_rate": 96.3, "mean_tat": 80.0, "median_tat": 42.0, "pct_le60": 59.2, "le30": 72, "d31_60": 37, "d61_100": 34, "gt100": 41}, "Y_2024": {"label": "Year 2024", "total_requested": 261, "total_resolved": 238, "resolution_rate": 91.2, "mean_tat": 106.3, "median_tat": 68.5, "pct_le60": 46.6, "le30": 55, "d31_60": 56, "d61_100": 35, "gt100": 92}, "Y_2023": {"label": "Year 2023", "total_requested": 0, "total_resolved": 0, "resolution_rate": 0, "mean_tat": 0, "median_tat": 0, "pct_le60": 0, "le30": 0, "d31_60": 0, "d61_100": 0, "gt100": 0}, "Q_2026Q3": {"label": "Quarter 2026Q3", "total_requested": 61, "total_resolved": 32, "resolution_rate": 52.5, "mean_tat": 41.0, "median_tat": 44.5, "pct_le60": 78.1, "le30": 12, "d31_60": 13, "d61_100": 7, "gt100": 0}, "Q_2026Q2": {"label": "Quarter 2026Q2", "total_requested": 58, "total_resolved": 50, "resolution_rate": 86.2, "mean_tat": 43.6, "median_tat": 34.0, "pct_le60": 68.0, "le30": 24, "d31_60": 10, "d61_100": 13, "gt100": 3}, "Q_2026Q1": {"label": "Quarter 2026Q1", "total_requested": 53, "total_resolved": 50, "resolution_rate": 94.3, "mean_tat": 74.5, "median_tat": 61.0, "pct_le60": 50.0, "le30": 13, "d31_60": 12, "d61_100": 12, "gt100": 13}, "Q_2025Q4": {"label": "Quarter 2025Q4", "total_requested": 44, "total_resolved": 43, "resolution_rate": 97.7, "mean_tat": 89.5, "median_tat": 83.0, "pct_le60": 44.2, "le30": 14, "d31_60": 5, "d61_100": 9, "gt100": 15}, "Q_2025Q3": {"label": "Quarter 2025Q3", "total_requested": 35, "total_resolved": 32, "resolution_rate": 91.4, "mean_tat": 61.2, "median_tat": 27.0, "pct_le60": 65.6, "le30": 18, "d31_60": 3, "d61_100": 5, "gt100": 6}, "Q_2025Q2": {"label": "Quarter 2025Q2", "total_requested": 42, "total_resolved": 42, "resolution_rate": 100.0, "mean_tat": 90.6, "median_tat": 60.0, "pct_le60": 50.0, "le30": 9, "d31_60": 12, "d61_100": 11, "gt100": 10}, "Q_2025Q1": {"label": "Quarter 2025Q1", "total_requested": 70, "total_resolved": 67, "resolution_rate": 95.7, "mean_tat": 76.4, "median_tat": 33.0, "pct_le60": 71.6, "le30": 31, "d31_60": 17, "d61_100": 9, "gt100": 10}, "Q_2024Q4": {"label": "Quarter 2024Q4", "total_requested": 112, "total_resolved": 109, "resolution_rate": 97.3, "mean_tat": 91.3, "median_tat": 77.0, "pct_le60": 43.1, "le30": 18, "d31_60": 29, "d61_100": 15, "gt100": 47}, "Q_2024Q3": {"label": "Quarter 2024Q3", "total_requested": 55, "total_resolved": 55, "resolution_rate": 100.0, "mean_tat": 129.4, "median_tat": 54.0, "pct_le60": 52.7, "le30": 19, "d31_60": 10, "d61_100": 4, "gt100": 22}, "M_OCT26": {"label": "Last Month (Oct 2026)", "total_requested": 7, "total_resolved": 0, "resolution_rate": 0.0, "mean_tat": 0, "median_tat": 0, "pct_le60": 0, "le30": 0, "d31_60": 0, "d61_100": 0, "gt100": 0}, "WEEK_7D": {"label": "Last 7 Days (Oct 14-21)", "total_requested": 4, "total_resolved": 10, "resolution_rate": 250.0, "mean_tat": 242.0, "median_tat": 36.5, "pct_le60": 60.0, "le30": 5, "d31_60": 1, "d61_100": 1, "gt100": 3}};
+    let quarterlyTatData = [{"period": "2024Q1", "count": 13, "mean_tat": 143.3, "median_tat": 120.0, "le30": 0, "d31_60": 0, "d61_100": 5, "gt100": 8, "pct_le60": 0.0}, {"period": "2024Q2", "count": 61, "mean_tat": 104.4, "median_tat": 48.0, "le30": 18, "d31_60": 17, "d61_100": 11, "gt100": 15, "pct_le60": 57.4}, {"period": "2024Q3", "count": 55, "mean_tat": 129.4, "median_tat": 54.0, "le30": 19, "d31_60": 10, "d61_100": 4, "gt100": 22, "pct_le60": 52.7}, {"period": "2024Q4", "count": 109, "mean_tat": 91.3, "median_tat": 77.0, "le30": 18, "d31_60": 29, "d61_100": 15, "gt100": 47, "pct_le60": 43.1}, {"period": "2025Q1", "count": 67, "mean_tat": 76.4, "median_tat": 33.0, "le30": 31, "d31_60": 17, "d61_100": 9, "gt100": 10, "pct_le60": 71.6}, {"period": "2025Q2", "count": 42, "mean_tat": 90.6, "median_tat": 60.0, "le30": 9, "d31_60": 12, "d61_100": 11, "gt100": 10, "pct_le60": 50.0}, {"period": "2025Q3", "count": 32, "mean_tat": 61.2, "median_tat": 27.0, "le30": 18, "d31_60": 3, "d61_100": 5, "gt100": 6, "pct_le60": 65.6}, {"period": "2025Q4", "count": 43, "mean_tat": 89.5, "median_tat": 83.0, "le30": 14, "d31_60": 5, "d61_100": 9, "gt100": 15, "pct_le60": 44.2}, {"period": "2026Q1", "count": 50, "mean_tat": 74.5, "median_tat": 61.0, "le30": 13, "d31_60": 12, "d61_100": 12, "gt100": 13, "pct_le60": 50.0}, {"period": "2026Q2", "count": 50, "mean_tat": 43.6, "median_tat": 34.0, "le30": 24, "d31_60": 10, "d61_100": 13, "gt100": 3, "pct_le60": 68.0}, {"period": "2026Q3", "count": 32, "mean_tat": 41.0, "median_tat": 44.5, "le30": 12, "d31_60": 13, "d61_100": 7, "gt100": 0, "pct_le60": 78.1}];
+    let monthlyTatData = [{"period": "2025-01", "count": 38, "mean_tat": 62.5, "median_tat": 33.0, "le30": 17, "d31_60": 11, "d61_100": 6, "gt100": 4, "pct_le60": 73.7}, {"period": "2025-02", "count": 14, "mean_tat": 96.2, "median_tat": 42.0, "le30": 4, "d31_60": 6, "d61_100": 2, "gt100": 2, "pct_le60": 71.4}, {"period": "2025-03", "count": 15, "mean_tat": 92.9, "median_tat": 27.0, "le30": 10, "d31_60": 0, "d61_100": 1, "gt100": 4, "pct_le60": 66.7}, {"period": "2025-04", "count": 16, "mean_tat": 112.6, "median_tat": 69.5, "le30": 3, "d31_60": 3, "d61_100": 5, "gt100": 5, "pct_le60": 37.5}, {"period": "2025-05", "count": 12, "mean_tat": 79.2, "median_tat": 52.5, "le30": 2, "d31_60": 5, "d61_100": 2, "gt100": 3, "pct_le60": 58.3}, {"period": "2025-06", "count": 14, "mean_tat": 75.1, "median_tat": 40.0, "le30": 4, "d31_60": 4, "d61_100": 4, "gt100": 2, "pct_le60": 57.1}, {"period": "2025-07", "count": 16, "mean_tat": 71.3, "median_tat": 47.0, "le30": 6, "d31_60": 3, "d61_100": 5, "gt100": 2, "pct_le60": 56.2}, {"period": "2025-08", "count": 3, "mean_tat": 9.0, "median_tat": 1.0, "le30": 3, "d31_60": 0, "d61_100": 0, "gt100": 0, "pct_le60": 100.0}, {"period": "2025-09", "count": 13, "mean_tat": 60.8, "median_tat": 20.0, "le30": 9, "d31_60": 0, "d61_100": 0, "gt100": 4, "pct_le60": 69.2}, {"period": "2025-10", "count": 25, "mean_tat": 91.7, "median_tat": 40.0, "le30": 10, "d31_60": 3, "d61_100": 3, "gt100": 9, "pct_le60": 52.0}, {"period": "2025-11", "count": 11, "mean_tat": 79.6, "median_tat": 98.0, "le30": 3, "d31_60": 1, "d61_100": 2, "gt100": 5, "pct_le60": 36.4}, {"period": "2025-12", "count": 7, "mean_tat": 97.1, "median_tat": 83.0, "le30": 1, "d31_60": 1, "d61_100": 4, "gt100": 1, "pct_le60": 28.6}, {"period": "2026-01", "count": 14, "mean_tat": 94.6, "median_tat": 91.5, "le30": 2, "d31_60": 4, "d61_100": 2, "gt100": 6, "pct_le60": 42.9}, {"period": "2026-02", "count": 20, "mean_tat": 63.7, "median_tat": 62.0, "le30": 5, "d31_60": 4, "d61_100": 8, "gt100": 3, "pct_le60": 45.0}, {"period": "2026-03", "count": 16, "mean_tat": 70.2, "median_tat": 56.0, "le30": 6, "d31_60": 4, "d61_100": 2, "gt100": 4, "pct_le60": 62.5}, {"period": "2026-04", "count": 22, "mean_tat": 44.8, "median_tat": 35.5, "le30": 10, "d31_60": 4, "d61_100": 6, "gt100": 2, "pct_le60": 63.6}, {"period": "2026-05", "count": 14, "mean_tat": 55.5, "median_tat": 41.0, "le30": 5, "d31_60": 3, "d61_100": 5, "gt100": 1, "pct_le60": 57.1}, {"period": "2026-06", "count": 14, "mean_tat": 29.8, "median_tat": 21.5, "le30": 9, "d31_60": 3, "d61_100": 2, "gt100": 0, "pct_le60": 85.7}, {"period": "2026-07", "count": 12, "mean_tat": 48.7, "median_tat": 55.0, "le30": 3, "d31_60": 5, "d61_100": 4, "gt100": 0, "pct_le60": 66.7}, {"period": "2026-08", "count": 14, "mean_tat": 43.5, "median_tat": 48.0, "le30": 3, "d31_60": 8, "d61_100": 3, "gt100": 0, "pct_le60": 78.6}, {"period": "2026-09", "count": 6, "mean_tat": 19.8, "median_tat": 19.5, "le30": 6, "d31_60": 0, "d61_100": 0, "gt100": 0, "pct_le60": 100.0}];
+    let yearlyTatData = [{"year": 2024, "count": 238, "mean_tat": 106.3, "median_tat": 68.5, "le30": 55, "d31_60": 56, "d61_100": 35, "gt100": 92, "pct_le60": 46.6}, {"year": 2025, "count": 184, "mean_tat": 80.0, "median_tat": 42.0, "le30": 72, "d31_60": 37, "d61_100": 34, "gt100": 41, "pct_le60": 59.2}, {"year": 2026, "count": 132, "mean_tat": 54.7, "median_tat": 49.0, "le30": 49, "d31_60": 35, "d61_100": 32, "gt100": 16, "pct_le60": 63.6}];
+    let quarterlyAggData = [{"period": "2024Q1", "total": 30, "closed": 30, "open": 0}, {"period": "2024Q2", "total": 64, "closed": 63, "open": 1}, {"period": "2024Q3", "total": 55, "closed": 55, "open": 0}, {"period": "2024Q4", "total": 112, "closed": 109, "open": 3}, {"period": "2025Q1", "total": 70, "closed": 67, "open": 3}, {"period": "2025Q2", "total": 42, "closed": 42, "open": 0}, {"period": "2025Q3", "total": 35, "closed": 32, "open": 3}, {"period": "2025Q4", "total": 44, "closed": 43, "open": 1}, {"period": "2026Q1", "total": 53, "closed": 50, "open": 3}, {"period": "2026Q2", "total": 58, "closed": 50, "open": 8}, {"period": "2026Q3", "total": 61, "closed": 32, "open": 29}, {"period": "2026Q4", "total": 7, "closed": 0, "open": 7}];
+    let dailySnapshots = {"labels": ["Sep 10 (Baseline)", "Oct 07", "Oct 08", "Oct 09", "Oct 13", "Oct 16", "Oct 19", "Oct 20", "Oct 21 (Today)"], "total": [65, 60, 56, 57, 58, 60, 60, 56, 51], "bugs": [12, 11, 8, 9, 9, 9, 10, 7, 7], "open": [45, 44, 42, 41, 41, 40, 43, 52, 46], "review": [8, 5, 3, 2, 3, 5, 3, 2, 3], "raised": [12, 11, 11, 14, 14, 15, 14, 2, 2], "gt_100d": [25, 23, 22, 21, 23, 23, 23, 24, 21]};
+
+    let activeSliceKey = "Y_2026";
+    let chartStatus, chartPrio, chartType;
+    let chartTatTrend, chartTatCompliance, chartTatBracket, chartVolume, chartDaily;
+
+    // Tab Switching
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-pane").forEach(el => el.classList.remove("active"));
+      document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+
+      document.getElementById(tabId).classList.add("active");
+      if (tabId === "tab-current") {
+        document.querySelector(".tab-btn:nth-child(1)").classList.add("active");
+      } else {
+        document.querySelector(".tab-btn:nth-child(2)").classList.add("active");
+        setTimeout(initTrendingCharts, 50);
+      }
+    }
+
+    // ================= CLIENT-SIDE DRAG & DROP / FILE PARSING =================
+    const dropZone = document.getElementById("dropZone");
+
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("dragover");
+    });
+
+    dropZone.addEventListener("dragleave", () => {
+      dropZone.classList.remove("dragover");
+    });
+
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      if (e.dataTransfer.files.length > 0) {
+        processUploadedFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    function handleFileSelect(e) {
+      if (e.target.files.length > 0) {
+        processUploadedFile(e.target.files[0]);
+      }
+    }
+
+    function processUploadedFile(file) {
+      const reader = new FileReader();
+      const fileName = file.name;
+
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonRows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+          if (!jsonRows || jsonRows.length === 0) {
+            alert("Uploaded file appears to be empty.");
+            return;
+          }
+
+          const firstRow = jsonRows[0];
+          const keys = Object.keys(firstRow).map(k => k.trim().toUpperCase());
+
+          if (keys.includes("TICKET NO.") || keys.includes("TICKET NO") || keys.includes("REQUEST AGE")) {
+            parseActiveExportData(jsonRows, fileName);
+          } else {
+            parseActiveExportData(jsonRows, fileName);
+          }
+
+          const badge = document.getElementById("uploadStatusBadge");
+          badge.style.display = "inline-flex";
+          document.getElementById("uploadStatusText").innerText = `✅ Ingested "${fileName}" (${jsonRows.length} rows) — Dashboard refreshed!`;
+          document.getElementById("liveDateBadge").innerText = `${fileName.replace('.xlsx', '').replace('.csv', '')} (User Ingested)`;
+
+        } catch (err) {
+          console.error("Error parsing file:", err);
+          alert("Error parsing file: " + err.message);
+        }
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    function parseActiveExportData(rows, fileName) {
+      const parsed = [];
+      rows.forEach(r => {
+        const getVal = (candidates) => {
+          for (let c of candidates) {
+            for (let k in r) {
+              if (k.trim().toUpperCase() === c.toUpperCase()) return r[k];
+            }
+          }
+          return "";
+        };
+
+        const ticket = String(getVal(["TICKET NO.", "TICKET NO", "TICKET_NO", "TICKET"])).trim();
+        if (!ticket) return;
+
+        const name = String(getVal(["ISSUE NAME", "ISSUE_NAME", "NAME", "TITLE"])).trim();
+        const desc = String(getVal(["ISSUE DESCRIPTION", "ISSUE_DESCRIPTION", "DESCRIPTION", "DESC"])).trim();
+        const type = String(getVal(["ISSUE TYPE", "ISSUE_TYPE", "TYPE"])) || "Unclassified";
+        const priority = String(getVal(["PRIORITY", "PRIO"])) || "Medium";
+        const rawStatus = String(getVal(["STATUS"])) || "Open";
+        
+        let status = "Open";
+        if (rawStatus.toLowerCase().includes("review")) status = "In Review";
+        else if (rawStatus.toLowerCase().includes("raised") || rawStatus.toLowerCase().includes("triage")) status = "Raised";
+
+        const age = parseInt(getVal(["REQUEST AGE", "REQUEST_AGE", "AGE"])) || 0;
+        const status_age = parseInt(getVal(["STATUS AGE", "STATUS_AGE"])) || 0;
+        const raised_by = String(getVal(["RAISED BY", "RAISED_BY", "CREATED_BY", "SUBMITTER"])) || "Unknown";
+        const raised_on = String(getVal(["RAISED ON", "RAISED_ON", "CREATED_DATE"])) || "";
+        const eta = String(getVal(["ETA"])) || "-";
+        const url = String(getVal(["URL"])) || "";
+
+        parsed.push({ ticket, name, desc, type, priority, status, raw_status: rawStatus, age, status_age, raised_by, raised_on, eta, url });
+      });
+
+      if (parsed.length > 0) {
+        currentData = parsed;
+        refreshTab1();
+      }
+    }
+
+    // ================= REFRESH TAB 1 RECALCULATION ENGINE =================
+    function refreshTab1() {
+      const totActive = currentData.length;
+      const bugs = currentData.filter(r => r.type.toLowerCase().includes("bug"));
+      const le60Count = currentData.filter(r => r.age <= 60).length;
+      const freshness = totActive > 0 ? ((le60Count / totActive) * 100).toFixed(1) : 0;
+      const gt100Count = currentData.filter(r => r.age > 100).length;
+      const gt100Pct = totActive > 0 ? ((gt100Count / totActive) * 100).toFixed(1) : 0;
+
+      document.getElementById("tab1Count").innerText = totActive;
+      document.getElementById("kpiActiveCount").innerText = totActive;
+      document.getElementById("kpiBugCount").innerText = bugs.length;
+      document.getElementById("kpiFreshnessVal").innerText = `${freshness}%`;
+      document.getElementById("kpiFreshnessSub").innerText = `${le60Count} of ${totActive} tickets &le;60d`;
+      document.getElementById("kpiAgingVal").innerText = gt100Count;
+      document.getElementById("kpiAgingSub").innerText = `${gt100Pct}% of active pool`;
+
+      populateDropdowns();
+      renderActiveBugsTable(bugs);
+      updateTab1Charts();
+      filterCurrentTable();
+    }
+
+    function populateDropdowns() {
+      const openCount = currentData.filter(r => r.status === "Open").length;
+      const reviewCount = currentData.filter(r => r.status === "In Review").length;
+      const raisedCount = currentData.filter(r => r.status === "Raised").length;
+
+      const statusSelect = document.getElementById("statusFilter");
+      statusSelect.innerHTML = `
+        <option value="ALL">All Statuses (${currentData.length})</option>
+        <option value="Open">Open (${openCount})</option>
+        <option value="In Review">In Review (${reviewCount})</option>
+        <option value="Raised">Raised (${raisedCount})</option>
+      `;
+
+      const types = [...new Set(currentData.map(r => r.type))].sort();
+      const typeSelect = document.getElementById("typeFilter");
+      typeSelect.innerHTML = '<option value="ALL">All Request Types</option>';
+      types.forEach(t => {
+        const count = currentData.filter(r => r.type === t).length;
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.innerText = `${t} (${count})`;
+        typeSelect.appendChild(opt);
+      });
+    }
+
+    function renderActiveBugsTable(bugs) {
+      const tbody = document.getElementById("activeBugsTableBody");
+      tbody.innerHTML = "";
+      document.getElementById("activeBugTableCount").innerText = bugs.length;
+
+      bugs.forEach(b => {
+        const tr = document.createElement("tr");
+        let prioClass = b.priority === "High" ? "tag-prio-high" : "tag-prio-med";
+        let ageClass = b.age > 100 ? "age-high" : (b.age > 30 ? "age-med" : "age-low");
+
+        let statusClass = "tag-open";
+        if (b.status === "In Review") statusClass = "tag-review";
+        else if (b.status === "Raised") statusClass = "tag-raised";
+
+        tr.innerHTML = `
+          <td><span class="ticket-badge">${b.ticket}</span></td>
+          <td><strong>${b.name}</strong></td>
+          <td><span class="${prioClass}">${b.priority}</span></td>
+          <td><span class="${statusClass}">${b.status}</span></td>
+          <td><span class="age-pill ${ageClass}">${b.age}d</span></td>
+          <td>${b.raised_by}</td>
+          <td style="color:var(--cisco-slate); max-width:320px;">${b.desc.substring(0, 95)}${b.desc.length > 95 ? '...' : ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateTab1Charts() {
+      const openCount = currentData.filter(r => r.status === "Open").length;
+      const reviewCount = currentData.filter(r => r.status === "In Review").length;
+      const raisedCount = currentData.filter(r => r.status === "Raised").length;
+
+      if (chartStatus) {
+        chartStatus.data.labels = [`Open (${openCount})`, `In Review (${reviewCount})`, `Raised (${raisedCount})`];
+        chartStatus.data.datasets[0].data = [openCount, reviewCount, raisedCount];
+        chartStatus.update();
+      }
+
+      const pHigh = currentData.filter(r => r.priority === "High").length;
+      const pMed = currentData.filter(r => r.priority === "Medium").length;
+      const pLow = currentData.filter(r => r.priority === "Low").length;
+      if (chartPrio) {
+        chartPrio.data.labels = [`Medium (${pMed})`, `High (${pHigh})`, `Low (${pLow})`];
+        chartPrio.data.datasets[0].data = [pMed, pHigh, pLow];
+        chartPrio.update();
+      }
+
+      const typeCounts = [
+        currentData.filter(r => r.type.includes("Enhance")).length,
+        currentData.filter(r => r.type === "Action").length,
+        currentData.filter(r => r.type.includes("Change")).length,
+        currentData.filter(r => r.type.includes("Bug")).length,
+        currentData.filter(r => r.type.includes("Feature Req")).length,
+        currentData.filter(r => r.type.includes("Fault")).length
+      ];
+      if (chartType) {
+        chartType.data.datasets[0].data = typeCounts;
+        chartType.update();
+      }
+    }
+
+    // ================= TAB 1: TABLE FILTER & SORT =================
+    function renderCurrentTable(items) {
+      const tbody = document.getElementById("currentTableBody");
+      tbody.innerHTML = "";
+      items.forEach(r => {
+        const tr = document.createElement("tr");
+        
+        let ageClass = "age-low";
+        if (r.age > 100) ageClass = "age-high";
+        else if (r.age > 60) ageClass = "age-high";
+        else if (r.age > 30) ageClass = "age-med";
+
+        let prioClass = (r.priority === "High") ? "tag-prio-high" : "tag-prio-med";
+
+        let statusClass = "tag-open";
+        if (r.status === "In Review") statusClass = "tag-review";
+        else if (r.status === "Raised") statusClass = "tag-raised";
+
+        tr.innerHTML = `
+          <td><span class="ticket-badge">${r.ticket}</span></td>
+          <td><strong>${r.name}</strong></td>
+          <td>${r.type}</td>
+          <td><span class="${prioClass}">${r.priority}</span></td>
+          <td><span class="${statusClass}">${r.status}</span></td>
+          <td><span class="age-pill ${ageClass}">${r.age}d</span></td>
+          <td>${r.raised_by}</td>
+          <td style="color:var(--cisco-slate); max-width:320px;">${r.desc.substring(0, 95)}${r.desc.length > 95 ? '...' : ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById("filteredCount").innerText = `Showing ${items.length} of ${currentData.length} records`;
+    }
+
+    function filterCurrentTable() {
+      const q = document.getElementById("searchInput").value.toLowerCase();
+      const statusF = document.getElementById("statusFilter").value;
+      const typeF = document.getElementById("typeFilter").value;
+      const prioF = document.getElementById("prioFilter").value;
+      const ageF = document.getElementById("ageFilter").value;
+
+      const filtered = currentData.filter(r => {
+        const matchQ = !q || r.ticket.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.raised_by.toLowerCase().includes(q) || r.desc.toLowerCase().includes(q);
+        const matchStatus = (statusF === "ALL") || (r.status === statusF);
+        const matchType = (typeF === "ALL") || (r.type === typeF);
+        const matchPrio = (prioF === "ALL") || (r.priority === prioF);
+        
+        let matchAge = true;
+        if (ageF === "LE30") matchAge = (r.age <= 30);
+        else if (ageF === "31TO60") matchAge = (r.age > 30 && r.age <= 60);
+        else if (ageF === "61TO100") matchAge = (r.age > 60 && r.age <= 100);
+        else if (ageF === "GT100") matchAge = (r.age > 100);
+
+        return matchQ && matchStatus && matchType && matchPrio && matchAge;
+      });
+
+      renderCurrentTable(filtered);
+    }
+
+    let sortDirCurr = {};
+    function sortCurrentTable(colIdx) {
+      sortDirCurr[colIdx] = !sortDirCurr[colIdx];
+      const keys = ["ticket", "name", "type", "priority", "status", "age", "raised_by"];
+      const key = keys[colIdx];
+      
+      currentData.sort((a, b) => {
+        let vA = a[key];
+        let vB = b[key];
+        if (typeof vA === "number") {
+          return sortDirCurr[colIdx] ? vA - vB : vB - vA;
+        } else {
+          return sortDirCurr[colIdx] ? String(vA).localeCompare(String(vB)) : String(vB).localeCompare(String(vA));
+        }
+      });
+      filterCurrentTable();
+    }
+
+    // ================= TAB 2: DYNAMIC TIME SLICE ENGINE & SPINNING KPIS =================
+    function applyTimeSlice(sliceKey) {
+      activeSliceKey = sliceKey;
+      document.querySelectorAll(".gran-btn").forEach(b => b.classList.remove("active"));
+      
+      const btnMap = {
+        'ALL': 'btn-slice-all',
+        'Y_2026': 'btn-slice-2026',
+        'Y_2025': 'btn-slice-2025',
+        'Y_2024': 'btn-slice-2024',
+        'Q_2026Q3': 'btn-slice-q3',
+        'Q_2026Q2': 'btn-slice-q2',
+        'M_OCT26': 'btn-slice-month',
+        'WEEK_7D': 'btn-slice-week'
+      };
+      if (btnMap[sliceKey]) document.getElementById(btnMap[sliceKey]).classList.add("active");
+
+      const data = sliceMetrics[sliceKey] || sliceMetrics['Y_2026'];
+      document.getElementById("activeSliceName").innerText = data.label;
+
+      animateValue("sliceReqVal", data.total_requested);
+      animateValue("sliceResVal", data.total_resolved);
+      animateValue("sliceRateVal", data.resolution_rate + "%");
+      animateValue("sliceMeanVal", data.mean_tat + " Days");
+      animateValue("sliceMedianVal", data.median_tat + " Days");
+      animateValue("sliceCompVal", data.pct_le60 + "%");
+    }
+
+    function animateValue(elemId, newVal) {
+      const el = document.getElementById(elemId);
+      el.classList.remove("spin-val");
+      void el.offsetWidth;
+      el.classList.add("spin-val");
+      el.innerText = newVal;
+    }
+
+    function renderTatTable(items) {
+      const tbody = document.getElementById("tatTableBody");
+      tbody.innerHTML = "";
+      items.forEach(r => {
+        const tr = document.createElement("tr");
+        let rateColor = "#2E7D32";
+        if (r.pct_le60 < 50) rateColor = "#E65100";
+        else if (r.pct_le60 >= 70) rateColor = "#1B5E20";
+
+        tr.innerHTML = `
+          <td><strong>${r.period}</strong></td>
+          <td>${r.count}</td>
+          <td><span style="color:#005073; font-weight:700;">${r.mean_tat}d</span></td>
+          <td>${r.median_tat}d</td>
+          <td><strong style="color:${rateColor};">${r.pct_le60}%</strong></td>
+          <td><span style="color:#2E7D32;">${r.le30}</span></td>
+          <td>${r.d31_60}</td>
+          <td>${r.d61_100}</td>
+          <td><span style="color:${r.gt100 > 0 ? '#C62828' : '#58585B'}; font-weight:700;">${r.gt100}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById("tatTableCount").innerText = `${items.length} Quarters Breakdown`;
+    }
+
+    function initTrendingCharts() {
+      if (chartTatTrend) return;
+
+      const labels = quarterlyTatData.map(d => d.period);
+
+      chartTatTrend = new Chart(document.getElementById('tatTrendChart'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Mean Turnaround (Days)',
+              data: quarterlyTatData.map(d => d.mean_tat),
+              borderColor: '#005073',
+              backgroundColor: 'rgba(0, 80, 115, 0.08)',
+              fill: true,
+              tension: 0.25,
+              borderWidth: 2.5,
+              pointRadius: 4
+            },
+            {
+              label: 'Median Turnaround (Days)',
+              data: quarterlyTatData.map(d => d.median_tat),
+              borderColor: '#00BCEB',
+              borderDash: [5, 5],
+              tension: 0.25,
+              borderWidth: 2,
+              pointRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#EEF0F4' }, title: { display: true, text: 'Days to Close' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      chartTatCompliance = new Chart(document.getElementById('tatComplianceChart'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '% Closed within <= 60 Days',
+            data: quarterlyTatData.map(d => d.pct_le60),
+            borderColor: '#6CC24A',
+            backgroundColor: 'rgba(108, 194, 74, 0.12)',
+            fill: true,
+            tension: 0.25,
+            borderWidth: 2.5,
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: {
+            y: { min: 0, max: 100, grid: { color: '#EEF0F4' }, title: { display: true, text: 'Compliance %' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      chartTatBracket = new Chart(document.getElementById('tatBracketChart'), {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: '<= 30 Days', data: quarterlyTatData.map(d => d.le30), backgroundColor: '#6CC24A' },
+            { label: '31 - 60 Days', data: quarterlyTatData.map(d => d.d31_60), backgroundColor: '#00BCEB' },
+            { label: '61 - 100 Days', data: quarterlyTatData.map(d => d.d61_100), backgroundColor: '#FFF8E1' },
+            { label: '> 100 Days', data: quarterlyTatData.map(d => d.gt100), backgroundColor: '#FA582D' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: {
+            x: { stacked: true, grid: { display: false } },
+            y: { stacked: true, beginAtZero: true, grid: { color: '#EEF0F4' } }
+          }
+        }
+      });
+
+      const qLabels = quarterlyAggData.map(d => d.period);
+      chartVolume = new Chart(document.getElementById('trendVolumeChart'), {
+        type: 'bar',
+        data: {
+          labels: qLabels,
+          datasets: [
+            {
+              label: 'Total Requests Raised',
+              data: quarterlyAggData.map(d => d.total),
+              backgroundColor: '#005073',
+              borderRadius: 4
+            },
+            {
+              label: 'Resolved / Closed',
+              data: quarterlyAggData.map(d => d.closed),
+              backgroundColor: '#00A389',
+              borderRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#EEF0F4' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      chartDaily = new Chart(document.getElementById('dailySnapshotChart'), {
+        type: 'line',
+        data: {
+          labels: dailySnapshots.labels,
+          datasets: [
+            {
+              label: 'Active Backlog Inventory',
+              data: dailySnapshots.total,
+              borderColor: '#005073',
+              backgroundColor: 'rgba(0, 80, 115, 0.08)',
+              fill: true,
+              tension: 0.2,
+              borderWidth: 2.5,
+              pointRadius: 4
+            },
+            {
+              label: 'Active Bug Backlog',
+              data: dailySnapshots.bugs,
+              borderColor: '#FA582D',
+              backgroundColor: 'rgba(250, 88, 45, 0.1)',
+              fill: true,
+              tension: 0.2,
+              borderWidth: 2.5,
+              pointRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#EEF0F4' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      renderTatTable(quarterlyTatData);
+    }
+
+    // ================= INIT ON LOAD =================
+    window.onload = function() {
+      // Initialize charts first so updateTab1Charts can populate them cleanly
+      chartStatus = new Chart(document.getElementById('currStatusChart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Open (46)', 'In Review (3)', 'Raised (2)'],
+          datasets: [{
+            data: [46, 3, 2],
+            backgroundColor: ['#00BCEB', '#00A389', '#FA582D'],
+            borderWidth: 2,
+            borderColor: '#FFFFFF'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
+          cutout: '65%'
+        }
+      });
+
+      chartPrio = new Chart(document.getElementById('currPrioChart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Medium (25)', 'High (16)', 'Low (10)'],
+          datasets: [{
+            data: [25, 16, 10],
+            backgroundColor: ['#00BCEB', '#FA582D', '#00A389'],
+            borderWidth: 2,
+            borderColor: '#FFFFFF'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
+          cutout: '60%'
+        }
+      });
+
+      chartType = new Chart(document.getElementById('currTypeChart'), {
+        type: 'bar',
+        data: {
+          labels: ['Enhancement', 'Action', 'Change Req', 'Bug', 'Feature Req', 'Fault Res'],
+          datasets: [{
+            label: 'Active Count',
+            data: [16, 15, 7, 7, 4, 2],
+            backgroundColor: ['#005073', '#00BCEB', '#00A389', '#FA582D', '#58585B', '#8FA8B8'],
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#EEF0F4' } },
+            x: { grid: { display: false }, ticks: { font: { size: 9.5 } } }
+          }
+        }
+      });
+
+      refreshTab1();
+    };
+  </script>
+</body>
+</html>
